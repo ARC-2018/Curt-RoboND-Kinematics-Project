@@ -17,6 +17,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
+import numpy as np
 
 def rot_x(q):
     R_x = Matrix([[1, 0, 0],
@@ -63,7 +64,7 @@ def do_forward():
     # s.update({q1: 0, q2: -pi/2, q3: 0, q4: 0, q5: 0, q6: 0})
     # s.update({q2: -pi/2, q3: 0, q4: 0, q5: 0, q6: 0})
     # s.update({q3: 0, q4: 0, q5: 0, q6: 0})
-    s.update({q4: 0, q5: 0, q6: 0})
+    # s.update({q4: 0, q5: 0, q6: 0})
 
     T0_1 = Matrix([ [cos(q1),              -sin(q1),            0,              a0],
                     [sin(q1)*cos(alpha0),  cos(q1)*cos(alpha0), -sin(alpha0),   -sin(alpha0)*d1],
@@ -108,12 +109,12 @@ def do_forward():
     T6_G = T6_G.subs(s)
 
     global T0_2, T0_3
-    T0_2 = simplify(T0_1 * T1_2)
-    T0_3 = simplify(T0_2 * T2_3)
-    T0_4 = simplify(T0_3 * T3_4)
-    T0_5 = simplify(T0_4 * T4_5)
-    T0_6 = simplify(T0_5 * T5_6)
-    T0_G = simplify(T0_6 * T6_G)
+    T0_2 = (T0_1 * T1_2)
+    T0_3 = (T0_2 * T2_3)
+    T0_4 = (T0_3 * T3_4)
+    T0_5 = (T0_4 * T4_5)
+    T0_6 = (T0_5 * T5_6)
+    T0_G = (T0_6 * T6_G)
 
     # Rotations to transform(/fix) final DH axes of gripper to world axes
     # Rotate about z by 180 deg
@@ -160,9 +161,14 @@ def handle_calculate_IK(req):
             (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
                 [req.poses[x].orientation.x, req.poses[x].orientation.y,
                     req.poses[x].orientation.z, req.poses[x].orientation.w])
+
+            Rq = tf.transformations.quaternion_matrix(
+                [req.poses[x].orientation.x, req.poses[x].orientation.y,
+                    req.poses[x].orientation.z, req.poses[x].orientation.w])
      
             # Calculate joint angles using Geometric IK method
-            theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw)
+            theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw, Rq)
+            print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
 
             # Populate response for the IK request
 
@@ -179,43 +185,74 @@ def IK_server():
     s = rospy.Service('calculate_ik', CalculateIK, handle_calculate_IK)
     print "Calculate Forward Kinematic Matrix"
     do_forward()
-    do_test()
+    if 1:
+        do_test()
     print "Ready to receive an IK request"
     rospy.spin()
 
 def do_test():
     px,py,pz = 2.0900910021952077, 0.900061404046043, 2.345040102031809
     roll, pitch, yaw = -0.0006983567709816882, 0.0006055558123970211, -0.0008013688952962057
-    theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw)
+    # roll, pitch, yaw = -0.2, 0.3, 0.4
+    px,py,pz = 2.0, 2.0, 2.0
+    roll, pitch, yaw = 0.0, 0.0, 0.0
+    theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw, None)
     print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
     sys.exit(0)
 
-def do_work(px, py, pz, roll, pitch, yaw):
+def do_work(px, py, pz, roll, pitch, yaw, Rq):
 
     print "start do work"
     print "px,py,pz end is", px, py, pz
     print "roll, pitch, yaw is", roll, pitch, yaw
 
-    # Back caclculate wrist position
+    #################################
+    # Back calculate wrist position
+    #################################
 
     global Wrist_length
 
-    print "rotx(roll)", rot_x(roll)
+    # R_rpy = rot_x(roll)*rot_y(pitch)*rot_z(yaw) # Not correct -- intrinsic
+    R_ypr = rot_z(yaw)*rot_y(pitch)*rot_x(roll) # Correct for rpy we are given
 
-    ee_rot = simplify(rot_x(roll)*rot_y(pitch)*rot_z(yaw))
+    # R_sxyz = tf.transformations.euler_matrix(roll, pitch, yaw, "sxyz")
+    # R_rxyz = tf.transformations.euler_matrix(roll, pitch, yaw, "rxyz")
+    # R_szyx = tf.transformations.euler_matrix(yaw, pitch, roll, "szyx")
+    # R_rzyx = tf.transformations.euler_matrix(yaw, pitch, roll, "rzyx")
 
-    print "total rpy rotate", ee_rot
+    # print "Rq", Rq
+    # print "R_rpy", R_rpy
+    # print "R_ypr", R_ypr
+    # print "R_sxyz", R_sxyz
+    # print "R_rxyz", R_rxyz
+    # print "R_szyx", R_szyx
+    # print "R_rzyx", R_rzyx
 
-    r_complete = ee_rot.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
+    if 0:
+        for t in "rxyz rzyx sxyz szyx".split():
+            print " Transform", t
+            r,p,y = tf.transformations.euler_from_matrix(np.array(R_ypr).astype(np.float64), axes=t)
+            print t, "on R_ypr are", r, p, y
 
-    print "r_complete is", r_complete
+    R0_6 = R_ypr
+    print "R0_6 done correctly", R0_6
+
+    T0_6 = R0_6.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
+
+    # print "T0_6", T0_6
 
     #, calculate wrist ceinter as -Wrist_length along the z axis
-    wc = simplify(r_complete * Matrix([0.0, 0.0, -Wrist_length, 1]))
+    # wc = T0_6 * Matrix([0.0, 0.0, -Wrist_length, 1.0])
+    #, calculate wrist ceinter as -Wrist_length along the x axis
+    wc = T0_6 * Matrix([-Wrist_length, 0.0, 0.0, 1.0])
 
+    print "px,py,pz is", px, py, pz
     print "Wrist center is", wc
 
+    #################################
     # Calculate a few joint angles
+    #################################
+
     theta1 = 0.0
     theta2 = 0.0
     theta3 = 0.0
@@ -224,11 +261,11 @@ def do_work(px, py, pz, roll, pitch, yaw):
     theta6 = 0.0
     theta7 = 0.0
 
-    theta1 = atan2(wc[1], wc[0])
+    theta1 = atan2(wc[1], wc[0]).evalf()
     to_deg = 180.0 / pi
     to_rad = pi / 180.0
 
-    print "theta1 is", simplify(theta1*to_deg).evalf(), "degres"
+    print "theta1 is", (theta1*to_deg).evalf(), "degres"
 
     global q1, q2, q3, q4, q5, q6, q7 
     global T0_2, T0_3
@@ -255,6 +292,7 @@ def do_work(px, py, pz, roll, pitch, yaw):
     o2a2 = atan2(wc[2]-o2[2], sqrt((wc[0]-o2[0])**2 + (wc[1]-o2[1])**2))
 
     theta2 = (pi/2 - (o2a2 + o2a)).evalf() # straight up is zero for robot
+    theta2 = theta2.evalf()
 
     print "Theta2 is", (theta2*to_deg).evalf(), " which is sum of o2a and o2a2", (o2a * to_deg).evalf(), (o2a2 * to_deg).evalf()
 
@@ -267,7 +305,7 @@ def do_work(px, py, pz, roll, pitch, yaw):
     # Angle from o3 to o4 due to arm offset of .054 when 
     o3o4 = atan2(0.054, 1.5).evalf()
 
-    theta3 = pi/2 - (o3a + o3o4)
+    theta3 = (pi/2 - (o3a + o3o4)).evalf()
     
     print "o3o4 offset angle is", (o3o4*to_deg).evalf(), "theta3 is", (theta3*to_deg).evalf()
 
@@ -280,13 +318,13 @@ def do_work(px, py, pz, roll, pitch, yaw):
     # lets do some triple checking now that we calucated 04 from thje anlges but found it to be about
     # 1 inch off from the wc we were trying to calucate4 angles for.  Is there an errror in the
     # code or is there really this much numercial error in the calcuations????
+
     theta1o2 = atan2(o2[1], o2[0])
     theta1o3 = atan2(o3[1], o3[0])
     theta1o4 = atan2(o4[1], o4[0])
     theta1wc = atan2(wc[1], wc[0])
+
     print "theta1 is", theta1, "and theta1o4,o2,wc,o3", theta1o4, theta1o2, theta1wc, theta1o3
-    # Ah, it's PERFECT.  So x and y for o4 is on the right angle, but it's short, or long for some reason by
-    # an inch.
 
     # What's the distance from o3 to o4?  and o3 to wc?
     o3o4distance = sqrt((o3[0]-o4[0])**2 + (o3[1]-o4[1])**2 + (o3[2]-o4[2])**2)
@@ -300,20 +338,60 @@ def do_work(px, py, pz, roll, pitch, yaw):
     print "distance from 000 to o2", distance(Matrix([0,0,0]), o2)
     print "distance from .35/.75", sqrt(.35**2 + .75**2)
 
-    # OK, calculate the triangle angle and sides again using o2, o3, and o4
-    l23 = distance(o2, o3)
-    l34 = distance(o3, o4)
-    l24 = distance(o2, o4)
-    print "NEW tri sides (l34, l23, l24)", l34, l23, l24
-    o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
-    o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
-    o4a = simplify(pi - o3a - o2a).evalf()
-    print "NEW triangles are", (o3a*to_deg).evalf(), (o2a*to_deg).evalf(), (o4a*to_deg).evalf()
+    if 0:
+        # OK, calculate the triangle angle and sides again using o2, o3, and o4
+        l23 = distance(o2, o3)
+        l34 = distance(o3, o4)
+        l24 = distance(o2, o4)
+        print "NEW tri sides (l34, l23, l24)", l34, l23, l24
+        o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
+        o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
+        o4a = simplify(pi - o3a - o2a).evalf()
+        print "NEW triangles are", (o3a*to_deg).evalf(), (o2a*to_deg).evalf(), (o4a*to_deg).evalf()
+
+    #############################################
+    # Now q4 q5 and q6 for the end effector
+    #############################################
+
+    # T3_6 = T0_3.transpose()[:3,:3] * R_ypr
+    R3_6 = t3.transpose()[:3,:3] * R_ypr
+
+    print "R3_6 is", R3_6
+    print "R3_6*000 WL is", R3_6 * Matrix([0.0, 0.0, Wrist_length])
+
+    a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='rxyx')
+    # a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='sxyz')
+
+    print "abg from R3_6 is", a, b, g
+    print "abg from R3_6 is", r_to_d(a), r_to_d(b), r_to_d(g)
+
+    theta4 = a
+    theta5 = b
+    theta6 = g
+
+    # theta4 = d_to_r(100)
+    # theta5 = d_to_r(-50)
+    # theta6 = 0
+    
+    tt = T_total.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
+
+    tt_end = tt * Matrix([0,0,0,1])
+
+    print "tt is", tt
+    print "tt_end is", tt_end
+    print "distance from tt_end to wc is", distance(wc, tt_end)
+    print "distance from tt_end to pxyz is", distance(tt_end, Matrix([px, py, pz]))
     
     return theta1, theta2, theta3, theta4, theta5, theta6
 
 def distance(p1, p2):
     return (sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)).evalf()
+
+def r_to_d(x):
+    return (x * 180.0 / pi).evalf()
+
+def d_to_r(x):
+    return (x * pi / 180.0).evalf()
 
 
 if __name__ == "__main__":
