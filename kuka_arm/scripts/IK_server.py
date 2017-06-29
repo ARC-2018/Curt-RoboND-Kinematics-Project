@@ -108,7 +108,7 @@ def do_forward():
                     [0,                     0,                  0,              1]])
     T6_G = T6_G.subs(s)
 
-    global T0_2, T0_3
+    global T0_2, T0_3, T0_6, T0_G
     T0_2 = (T0_1 * T1_2)
     T0_3 = (T0_2 * T2_3)
     T0_4 = (T0_3 * T3_4)
@@ -185,7 +185,7 @@ def IK_server():
     s = rospy.Service('calculate_ik', CalculateIK, handle_calculate_IK)
     print "Calculate Forward Kinematic Matrix"
     do_forward()
-    if 1:
+    if 0:
         do_test()
     print "Ready to receive an IK request"
     rospy.spin()
@@ -194,8 +194,9 @@ def do_test():
     px,py,pz = 2.0900910021952077, 0.900061404046043, 2.345040102031809
     roll, pitch, yaw = -0.0006983567709816882, 0.0006055558123970211, -0.0008013688952962057
     # roll, pitch, yaw = -0.2, 0.3, 0.4
-    px,py,pz = 2.0, 2.0, 2.0
-    roll, pitch, yaw = 0.0, 0.0, 0.0
+    # px,py,pz = 2.0, 2.0, 2.0
+    # px,py,pz = 2.153, 0.0, 1.946 ## Home position -- angles all zero
+    # roll, pitch, yaw = 0.0, 0.0, 0.0
     theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw, None)
     print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
     sys.exit(0)
@@ -237,14 +238,14 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     R0_6 = R_ypr
     print "R0_6 done correctly", R0_6
 
-    T0_6 = R0_6.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
+    T_ypr = R0_6.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
 
-    # print "T0_6", T0_6
+    # print "T_ypr", T_ypr
 
     #, calculate wrist ceinter as -Wrist_length along the z axis
     # wc = T0_6 * Matrix([0.0, 0.0, -Wrist_length, 1.0])
-    #, calculate wrist ceinter as -Wrist_length along the x axis
-    wc = T0_6 * Matrix([-Wrist_length, 0.0, 0.0, 1.0])
+    #, calculate wrist center as -Wrist_length along the x axis
+    wc = T_ypr * Matrix([-Wrist_length, 0.0, 0.0, 1.0])
 
     print "px,py,pz is", px, py, pz
     print "Wrist center is", wc
@@ -268,7 +269,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     print "theta1 is", (theta1*to_deg).evalf(), "degres"
 
     global q1, q2, q3, q4, q5, q6, q7 
-    global T0_2, T0_3
+    global T0_2, T0_3, T0_6, T0_G
 
     t2 = T0_2.evalf(subs={q1: theta1, q2: 0})
     o2 = simplify(t2*Matrix([0,0,0,1])).evalf()
@@ -354,33 +355,57 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     #############################################
 
     # T3_6 = T0_3.transpose()[:3,:3] * R_ypr
-    R3_6 = t3.transpose()[:3,:3] * R_ypr
+    R3_w = t3.transpose()[:3,:3] * R_ypr
 
-    print "R3_6 is", R3_6
-    print "R3_6*000 WL is", R3_6 * Matrix([0.0, 0.0, Wrist_length])
+    # R3_w translates from link3 local frame (z along gripper,  x up) to
+    # world frame where we need the gripper to point with X to the right.
+    # The roation in RW_3 includes both the rotations we need to extract
+    # to point the gripper, but also the frame translations to adjust
+    # the local frame to the world frame.  So, lets remove the world frame
+    # Translation from this leaving us with only the needed wrist rotations..
 
-    a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='rxyx')
-    # a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='sxyz')
+    # R_w = R3_w 
+    R_w = R3_w * rot_z(-pi/2.0) * rot_y(-pi/2.0)
 
-    print "abg from R3_6 is", a, b, g
-    print "abg from R3_6 is", r_to_d(a), r_to_d(b), r_to_d(g)
+    t = "ryzy"
+    a, b, g = tf.transformations.euler_from_matrix(np.array(R_w).astype(np.float64), axes=t)
+
+    if 0:
+        print "using", t, "abg from R_w is", a, b, g
+        print "using", t, "abg from R_w is", r_to_d(a), r_to_d(b), r_to_d(g)
+
+    if 0:
+        g = g + pi
+        while g > pi:
+            g -= 2.0 * pi
+
+        g = g.evalf()
+        print "using", t, "adjusted abg is", r_to_d(a), r_to_d(b), r_to_d(g)
 
     theta4 = a
     theta5 = b
     theta6 = g
 
-    # theta4 = d_to_r(100)
-    # theta5 = d_to_r(-50)
-    # theta6 = 0
-    
-    tt = T_total.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
+    if 0:
+        global T_total
+        tt = T0_G.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
+        ttr = T_total.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
 
-    tt_end = tt * Matrix([0,0,0,1])
+        tt_end = tt * Matrix([0,0,0,1])
+        tt_wc = ttr * Matrix([-Wrist_length,0,0,1])
 
-    print "tt is", tt
-    print "tt_end is", tt_end
-    print "distance from tt_end to wc is", distance(wc, tt_end)
-    print "distance from tt_end to pxyz is", distance(tt_end, Matrix([px, py, pz]))
+        print "tt is", np.array(tt).astype(np.float64)
+        print "tt_end is", tt_end
+        print "tt_wc is", tt_wc
+        print "distance from tt_end to wc is", distance(wc, tt_end)
+        print "distance from tt_end to pxyz is", distance(tt_end, Matrix([px, py, pz]))
+
+        Rtt = np.array(ttr[:3,:3]).astype(np.float64)
+
+        print "Rtt is", Rtt
+
+        r,p,y = tf.transformations.euler_from_matrix(Rtt)
+        print "final rpy is", r, p, y
     
     return theta1, theta2, theta3, theta4, theta5, theta6
 
