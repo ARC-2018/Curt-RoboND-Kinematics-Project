@@ -185,7 +185,7 @@ def IK_server():
     s = rospy.Service('calculate_ik', CalculateIK, handle_calculate_IK)
     print "Calculate Forward Kinematic Matrix"
     do_forward()
-    if 0:
+    if 1:
         do_test()
     print "Ready to receive an IK request"
     rospy.spin()
@@ -197,6 +197,13 @@ def do_test():
     # px,py,pz = 2.0, 2.0, 2.0
     # px,py,pz = 2.153, 0.0, 1.946 ## Home position -- angles all zero
     # roll, pitch, yaw = 0.0, 0.0, 0.0
+    # px,py,pz = 2.0, 2.0, 2.0
+    if 1:
+        # test for guy on slack that broke my code
+        print atan2(0.229042, 0.165865).evalf()
+        px,py,pz = 0.165865+0.303, 0.229042, 2.5848
+        roll, pitch, yaw = 0.0, 0.0, 0.0
+
     theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw, None)
     print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
     sys.exit(0)
@@ -236,7 +243,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
             print t, "on R_ypr are", r, p, y
 
     R0_6 = R_ypr
-    print "R0_6 done correctly", R0_6
+    print "R0_6", np.array(R0_6).astype(np.float64)
 
     T_ypr = R0_6.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
 
@@ -247,7 +254,6 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     #, calculate wrist center as -Wrist_length along the x axis
     wc = T_ypr * Matrix([-Wrist_length, 0.0, 0.0, 1.0])
 
-    print "px,py,pz is", px, py, pz
     print "Wrist center is", wc
 
     #################################
@@ -263,14 +269,13 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     theta7 = 0.0
 
     theta1 = atan2(wc[1], wc[0]).evalf()
-    to_deg = 180.0 / pi
-    to_rad = pi / 180.0
 
-    print "theta1 is", (theta1*to_deg).evalf(), "degres"
+    print "theta1 is", r_to_d(theta1), "degres"
 
     global q1, q2, q3, q4, q5, q6, q7 
     global T0_2, T0_3, T0_6, T0_G
 
+    o1 = Matrix([0.0, 0.0, 0.75, 1.0])
     t2 = T0_2.evalf(subs={q1: theta1, q2: 0})
     o2 = simplify(t2*Matrix([0,0,0,1])).evalf()
     print "o2 is", o2
@@ -287,38 +292,43 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
     o4a = simplify(pi - o3a - o2a).evalf()
 
-    print "triangles are", (o3a*to_deg).evalf(), (o2a*to_deg).evalf(), (o4a*to_deg).evalf()
+    print "triangles are", r_to_d(o3a), r_to_d(o2a), r_to_d(o4a)
 
     # o2a2 = atan2(wc[2]-o2[2], wc[0]-o2[0])
     o2a2 = atan2(wc[2]-o2[2], sqrt((wc[0]-o2[0])**2 + (wc[1]-o2[1])**2))
 
+    print "-------------------------"
+    a = angle_between((o1-o2), (wc-o2))
+    print "angele between o1o2 and o2o4 is", r_to_d(a)
+    print "-------------------------"
+    newtheta2 = (a - pi/2 - o2a).evalf()
+    print "newtheta2 is", r_to_d(newtheta2)
+
     theta2 = (pi/2 - (o2a2 + o2a)).evalf() # straight up is zero for robot
+    theta2 = newtheta2
     theta2 = theta2.evalf()
 
-    print "Theta2 is", (theta2*to_deg).evalf(), " which is sum of o2a and o2a2", (o2a * to_deg).evalf(), (o2a2 * to_deg).evalf()
+    print "Theta2 is", r_to_d(theta2), "which is pi/2 - o2a - o2a2", r_to_d(o2a), r_to_d(o2a2)
 
     t2 = T0_2.evalf(subs={q1: theta1, q2: theta2-pi/2})
-    print "q2 is", ((theta2-pi/2) * to_deg).evalf()
+    print "q2 is", r_to_d(theta2-pi/2)
     o3 = t2*Matrix([1.25, 0.0, 0.0, 1])
     print "o3 is", o3
+    print "angle from o2 to o3 is", r_to_d(atan2(o3[2]-o2[2], sqrt((o3[0]-o2[0])**2 + (o3[1]-o2[1])**2)))
 
-    # We know know the world coordinates for the location of o3 and the wrist center wc (o4)
+    # We now know the world coordinates for the location of o3 and the wrist center wc (o4)
     # Angle from o3 to o4 due to arm offset of .054 when 
     o3o4 = atan2(0.054, 1.5).evalf()
 
     theta3 = (pi/2 - (o3a + o3o4)).evalf()
     
-    print "o3o4 offset angle is", (o3o4*to_deg).evalf(), "theta3 is", (theta3*to_deg).evalf()
+    print "o3o4 offset angle is", r_to_d(o3o4), "theta3 is", r_to_d(theta3)
 
     t3 = T0_3.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3})
     o4 = simplify(t3*Matrix([-0.054, 1.5, 0.0, 1])).evalf()
 
     print "o4 is", o4
     print "wc (should be same as 04)", wc
-
-    # lets do some triple checking now that we calucated 04 from thje anlges but found it to be about
-    # 1 inch off from the wc we were trying to calucate4 angles for.  Is there an errror in the
-    # code or is there really this much numercial error in the calcuations????
 
     theta1o2 = atan2(o2[1], o2[0])
     theta1o3 = atan2(o3[1], o3[0])
@@ -328,9 +338,11 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     print "theta1 is", theta1, "and theta1o4,o2,wc,o3", theta1o4, theta1o2, theta1wc, theta1o3
 
     # What's the distance from o3 to o4?  and o3 to wc?
-    o3o4distance = sqrt((o3[0]-o4[0])**2 + (o3[1]-o4[1])**2 + (o3[2]-o4[2])**2)
+    # o3o4distance = sqrt((o3[0]-o4[0])**2 + (o3[1]-o4[1])**2 + (o3[2]-o4[2])**2)
+    o3o4distance = distance(o3, o4)
     print "distance from o3 to o4 is", o3o4distance, "should be same as l34:", l34, "which should be a little bit larget than 1.5"
-    o3wcdistance = sqrt((o3[0]-wc[0])**2 + (o3[1]-wc[1])**2 + (o3[2]-wc[2])**2)
+    #o3wcdistance = sqrt((o3[0]-wc[0])**2 + (o3[1]-wc[1])**2 + (o3[2]-wc[2])**2)
+    o3wcdistance = distance(o3, wc)
     print "distance from o3 to wc is", o3wcdistance, "should be same as l34:", l34, "which should be a little bit larget than 1.5"
 
     print "distance from o2 to o3", distance(o2, o3)
@@ -339,7 +351,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     print "distance from 000 to o2", distance(Matrix([0,0,0]), o2)
     print "distance from .35/.75", sqrt(.35**2 + .75**2)
 
-    if 0:
+    if 1:
         # OK, calculate the triangle angle and sides again using o2, o3, and o4
         l23 = distance(o2, o3)
         l34 = distance(o3, o4)
@@ -348,7 +360,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
         o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
         o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
         o4a = simplify(pi - o3a - o2a).evalf()
-        print "NEW triangles are", (o3a*to_deg).evalf(), (o2a*to_deg).evalf(), (o4a*to_deg).evalf()
+        print "NEW triangles are", r_to_d(o3a), r_to_d(o2a), r_to_d(o4a)
 
     #############################################
     # Now q4 q5 and q6 for the end effector
@@ -359,7 +371,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
 
     # R3_w translates from link3 local frame (z along gripper,  x up) to
     # world frame where we need the gripper to point with X to the right.
-    # The roation in RW_3 includes both the rotations we need to extract
+    # The rotation in RW_3 includes both the rotations we need to extract
     # to point the gripper, but also the frame translations to adjust
     # the local frame to the world frame.  So, lets remove the world frame
     # Translation from this leaving us with only the needed wrist rotations..
@@ -386,7 +398,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     theta5 = b
     theta6 = g
 
-    if 0:
+    if 1:
         global T_total
         tt = T0_G.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
         ttr = T_total.evalf(subs={q1: theta1, q2: theta2-pi/2, q3: theta3, q4: theta4, q5: theta5, q6: theta6})
@@ -409,15 +421,30 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     
     return theta1, theta2, theta3, theta4, theta5, theta6
 
+# Distance between two 3D points
 def distance(p1, p2):
     return (sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)).evalf()
 
+# Radians to Degrees for debuging
 def r_to_d(x):
     return (x * 180.0 / pi).evalf()
 
+# Degrees to Radians for debuging
 def d_to_r(x):
     return (x * pi / 180.0).evalf()
 
+def angle_between(v1, v2):
+    a = v1[:3,:]
+    b = v2[:3,:]
+    print "angle between a is", a, "b is", b
+    print "a.magnitude() is", magnitude(a)
+    print "b.magnitude is", magnitude(b)
+    print "a.dot(b)", a.dot(b)
+    return acos(a.dot(b)/(magnitude(a)*magnitude(b)))
+
+def magnitude(v):
+    return sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
 
 if __name__ == "__main__":
     IK_server()
+
