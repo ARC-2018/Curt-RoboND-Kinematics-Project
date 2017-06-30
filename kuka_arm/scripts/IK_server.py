@@ -200,8 +200,13 @@ def do_test():
     # px,py,pz = 2.0, 2.0, 2.0
     if 1:
         # test for guy on slack that broke my code
+        # high test wc inside j2 circle
         print atan2(0.229042, 0.165865).evalf()
         px,py,pz = 0.165865+0.303, 0.229042, 2.5848
+        roll, pitch, yaw = 0.0, 0.0, 0.0
+    if 0:
+        # Low test fixking above high test borke this?
+        px,py,pz = 1.0+0.303, 1.0, 0.2
         roll, pitch, yaw = 0.0, 0.0, 0.0
 
     theta1, theta2, theta3, theta4, theta5, theta6 = do_work(px, py, pz, roll, pitch, yaw, None)
@@ -254,7 +259,8 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     #, calculate wrist center as -Wrist_length along the x axis
     wc = T_ypr * Matrix([-Wrist_length, 0.0, 0.0, 1.0])
 
-    print "Wrist center is", wc
+    print "Wrist center:"
+    pprint (wc)
 
     #################################
     # Calculate a few joint angles
@@ -278,7 +284,8 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     o1 = Matrix([0.0, 0.0, 0.75, 1.0])
     t2 = T0_2.evalf(subs={q1: theta1, q2: 0})
     o2 = simplify(t2*Matrix([0,0,0,1])).evalf()
-    print "o2 is", o2
+    print "o2:"
+    pprint(o2)
 
     l34 = sqrt(.054**2 + 1.5**2) # Straignt line length from O3 to O4
     l23 = 1.25
@@ -286,16 +293,23 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
 
     print "tri sides (l34, l23, l24)", l34, l23, l24
 
-    # Law of cosines to calculate triangle angle from sides
+    # Law of cosines to calculate triangle angles from length of sides
 
     o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
     o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
-    o4a = simplify(pi - o3a - o2a).evalf()
+    o4a = (pi - o3a - o2a).evalf()
 
     print "triangles are", r_to_d(o3a), r_to_d(o2a), r_to_d(o4a)
 
-    # o2a2 = atan2(wc[2]-o2[2], wc[0]-o2[0])
-    o2a2 = atan2(wc[2]-o2[2], sqrt((wc[0]-o2[0])**2 + (wc[1]-o2[1])**2))
+    # Horizontal distance from wrist center, to z axes of orign (center of base)
+    wc_to_0 = sqrt(wc[0]**2 + wc[1]**2)
+    # Horizontal distance from o2, to z axes of orign (center of base)
+    o2_to_0 = sqrt(o2[0]**2 + o2[1]**2)
+    # Angle from o2 to wc which will go negative if wc is inside rotaion circle
+    # of o2.
+    print "wc_to_0", wc_to_0
+    print "o2_to_0", o2_to_0
+    o2a2 = atan2(wc[2]-o2[2], wc_to_0 - o2_to_0)
 
     print "-------------------------"
     a = angle_between((o1-o2), (wc-o2))
@@ -305,8 +319,7 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     print "newtheta2 is", r_to_d(newtheta2)
 
     theta2 = (pi/2 - (o2a2 + o2a)).evalf() # straight up is zero for robot
-    theta2 = newtheta2
-    theta2 = theta2.evalf()
+    # theta2 = newtheta2.evalf()
 
     print "Theta2 is", r_to_d(theta2), "which is pi/2 - o2a - o2a2", r_to_d(o2a), r_to_d(o2a2)
 
@@ -377,6 +390,8 @@ def do_work(px, py, pz, roll, pitch, yaw, Rq):
     # Translation from this leaving us with only the needed wrist rotations..
 
     # R_w = R3_w 
+    print "R3_end"
+    pprint(R3_w)
     R_w = R3_w * rot_z(-pi/2.0) * rot_y(-pi/2.0)
 
     t = "ryzy"
