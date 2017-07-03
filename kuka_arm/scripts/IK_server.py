@@ -22,27 +22,6 @@ from mpmath import *
 from sympy import *
 import numpy as np
 
-def rot_x(q):
-    R_x = Matrix([[1, 0, 0],
-                [0, cos(q), -sin(q)],
-                [0, sin(q), cos(q)]])
-    
-    return R_x
-    
-def rot_y(q):              
-    R_y = Matrix([[cos(q), 0, sin(q)],
-                [0, 1, 0],
-                [-sin(q), 0, cos(q)]])
-    
-    return R_y
-
-def rot_z(q):    
-    R_z = Matrix([[cos(q), -sin(q), 0],
-                [sin(q), cos(q), 0],
-                [0, 0, 1]])
-    
-    return R_z
-
 class Kuka_KR210:
     def __init__(self):
         self.wrist_length = 0.303
@@ -64,7 +43,7 @@ class Kuka_KR210:
         if 1:
             # test for guy on slack that broke my code
             # high test wc inside j2 circle
-            print atan2(0.229042, 0.165865).evalf()
+            print np.arctan2(0.229042, 0.165865)
             px,py,pz = 0.165865+0.303, 0.229042, 2.5848
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
@@ -73,10 +52,6 @@ class Kuka_KR210:
             px,py,pz = 1.0+0.303, 1.0, 0.2
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
-
-        print "Repeat last test without debug"
-        theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=False)
-        print "angles are", theta1, theta2, theta3, theta4, theta5, theta6
 
         sys.exit(0)
 
@@ -87,6 +62,109 @@ class Kuka_KR210:
         return r[:3,:3]
 
     def getT(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
+
+        # Return Homogeneous transformation matrix for arm frame.
+        # n -- controls which frame matrix is returned (1 to 8)
+        # n=1 returns T0_1, n=2 returns T0_2, ... n=7 returns T0_G, n=8 returns T0_world
+        # T0_G has griper hand at 0,0 with x up, z forward
+        # T0_world is same as T0_G except axis rotated to world frame of z up, x forward
+
+        if n == 0:
+            return np.identity(4)
+
+        # print "Calculate Forward Kinematic Matrix for n=", n
+                
+        alpha0 = 0
+        a0 = 0
+
+        alpha1 = -np.pi/2
+        a1 = 0.35
+        d1 = 0.75
+        q1 = t1
+
+        alpha2 = 0
+        a2 = 1.25
+        d2 = 0
+        q2 = t2-np.pi/2
+
+        alpha3 = -np.pi/2
+        a3 = -0.054
+        d3 = 0
+        q3 = t3
+
+        alpha4 = np.pi/2
+        a4 = 0
+        d4 = 1.5
+        q4 = t4
+
+        alpha5 = -np.pi/2
+        a5 = 0
+        d5 = 0
+        q5 = t5
+
+        alpha6 = 0
+        a6 = 0
+        d6 = 0
+        q6 = t6
+
+        d7 = 0.303
+        q7 = 0
+
+        T0_1 = self.getDHT(alpha0, a0, d1, q1)
+        if n == 1:
+            return T0_1
+
+        T0_2 = T0_1 * self.getDHT(alpha1, a1, d2, q2)
+        if n == 2:
+            return T0_2
+
+        T0_3 = T0_2 * self.getDHT(alpha2, a2, d3, q3)
+        if n == 3:
+            return T0_3
+
+        T0_4 = T0_3 * self.getDHT(alpha3, a3, d4, q4)
+        if n == 4:
+            return T0_4
+
+        T0_5 = T0_4 * self.getDHT(alpha4, a4, d5, q5)
+        if n == 5:
+            return T0_5
+
+        T0_6 = T0_5 * self.getDHT(alpha5, a5, d6, q6)
+        if n == 6:
+            return T0_6
+
+        T0_G = T0_6 * self.getDHT(alpha6, a6, d7, q7)
+        if n == 7:
+            return T0_G
+
+        # Rotations to transform(/fix) final DH axes of gripper to world axes
+        # Rotate about z by 180 deg
+        R_z = np.matrix([  [np.cos(np.pi),    -np.sin(np.pi),    0,      0],
+                        [np.sin(np.pi),    np.cos(np.pi),     0,      0],
+                        [0,             0,              1,      0],
+                        [0,             0,              0,      1]])
+
+        # Rotate about y by -90 deg
+        R_y = np.matrix([  [np.cos(-np.pi/2),     0,      np.sin(-np.pi/2),  0],
+                        [0,                 1,      0,              0],
+                        [-np.sin(-np.pi/2),    0,      np.cos(-np.pi/2),  0],
+                        [0,                 0,      0,              1]])
+
+
+        R_corr = (R_z * R_y)
+
+        T_total = (T0_G * R_corr)
+
+        return T_total
+
+    def getDHT(self, alpha, a, d, theta):
+        return np.matrix([[np.cos(theta),              -np.sin(theta),            0,              a],
+                        [np.sin(theta)*np.cos(alpha),  np.cos(theta)*np.cos(alpha), -np.sin(alpha),   -np.sin(alpha)*d],
+                        [np.sin(theta)*np.sin(alpha),  np.cos(theta)*np.sin(alpha), np.cos(alpha),   np.cos(alpha)*d],
+                        [0,                     0,                  0,              1]])
+
+    def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
 
         # Return Homogeneous transformation matrix for arm frames
         # n controls which frame matrix is returned (1 to 8)
@@ -207,6 +285,7 @@ class Kuka_KR210:
                         [-sin(-pi/2),    0,      cos(-pi/2),  0],
                         [0,                 0,      0,              1]])
 
+
         R_corr = (R_z * R_y)
 
         T_total = (T0_G * R_corr)
@@ -223,7 +302,7 @@ class Kuka_KR210:
         # Back calculate wrist position
         #################################
 
-        R_rpy = rot_z(yaw)*rot_y(pitch)*rot_x(roll) # Correct for rpy we are given
+        R_rpy = self.rot_z(yaw)*self.rot_y(pitch)*self.rot_x(roll) # Extrinsic r, p, y
 
         # debug and experimentation code
         # R_rzyx = tf.transformations.euler_matrix(yaw, pitch, roll, "rzyx")
@@ -234,23 +313,15 @@ class Kuka_KR210:
         # print "R_szyx", R_szyx
         # print "R_rzyx", R_rzyx
 
-        if 0: # experiments
-            for t in "rxyz rzyx sxyz szyx".split():
-                print " Transform", t
-                r,p,y = tf.transformations.euler_from_matrix(np.array(R_rpy).astype(np.float64), axes=t)
-                print t, "on R_rpy are", r, p, y
-
         R0_6 = R_rpy
 
         # print "R0_6:"
         # pprint(R0_6)
 
-        T_ypr = R0_6.row_join(Matrix([px, py, pz])).col_join(Matrix([[0,0,0,1]]))
-
-        # print "T_ypr", T_ypr
+        T_ypr = np.vstack((np.hstack((R0_6, np.matrix([[px], [py], [pz]]))), np.matrix([0.0, 0.0, 0.0, 1.0])))
 
         # calculate wrist center as -wrist_length along the x axis
-        wc = T_ypr * Matrix([-self.wrist_length, 0.0, 0.0, 1.0])
+        wc = T_ypr * np.matrix([-self.wrist_length, 0.0, 0.0, 1.0]).T
 
         # print "Wrist center:"
         # pprint (wc)
@@ -273,14 +344,14 @@ class Kuka_KR210:
         # and reach back to grab it, but we don't ever use
         # That configuration in this code.
 
-        theta1 = atan2(wc[1], wc[0]).evalf() ## The simple one
+        theta1 = np.arctan2(wc[1,0], wc[0,0])       ## The simple one
 
         # print "theta1 is", self.r_to_d(theta1), "degres"
 
-        o1 = Matrix([0.0, 0.0, 0.75, 1.0])
+        o1 = np.matrix([0.0, 0.0, 0.75, 1.0]).T
 
         T2 = self.getT(2, t1=theta1, t2=0.0)
-        o2 = (T2*Matrix([0,0,0,1])).evalf()
+        o2 = T2 * np.matrix([0.0, 0.0, 0.0, 1.0]).T
 
         # print "T2"
         # pprint(T2)
@@ -301,17 +372,17 @@ class Kuka_KR210:
         # The third is computed since we know the location of o2 now, and
         # and the location of of the wrist center.
 
-        l34 = sqrt(.054**2 + 1.5**2) # Straignt line length from O3 to O4
+        l34 = np.sqrt(.054**2 + 1.5**2) # Straignt line length from O3 to O4
         l23 = 1.25
-        l24 = sqrt((wc[0]-o2[0])**2 + (wc[1]-o2[1])**2 + (wc[2]-o2[2])**2)
+        l24 = np.sqrt((wc[0,0]-o2[0,0])**2 + (wc[1,0]-o2[1,0])**2 + (wc[2,0]-o2[2,0])**2)
 
         # print "tri sides (l34, l23, l24)", l34, l23, l24
 
         # Use law of cosines to calculate angles from length of sides
 
-        o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
-        o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
-        o4a = (pi - o3a - o2a).evalf()
+        o3a = np.arccos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
+        o2a = np.arccos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
+        o4a = np.pi - o3a - o2a
 
         # print "triangles are", self.r_to_d(o3a), self.r_to_d(o2a), self.r_to_d(o4a)
 
@@ -319,28 +390,28 @@ class Kuka_KR210:
         # running from joint 2, to the wrist center.
 
         # Horizontal distance from wrist center, to z axes of orign (center of base)
-        wc_to_0 = sqrt(wc[0]**2 + wc[1]**2)
+        wc_to_0 = np.sqrt(wc[0,0]**2 + wc[1,0]**2)
         # Horizontal distance from o2, to z axes of orign (center of base)
-        o2_to_0 = sqrt(o2[0]**2 + o2[1]**2)
+        o2_to_0 = np.sqrt(o2[0,0]**2 + o2[1,0]**2)
         # Angle from o2 to wc which will go negative if wc is inside rotaion circle
         # of o2.
-        o2o4horz = atan2(wc[2]-o2[2], wc_to_0 - o2_to_0)
+        o2o4horz = np.arctan2(wc[2,0]-o2[2,0], wc_to_0 - o2_to_0)
 
         # use the joint 2 angle of the triangle, and the angle of joint 2
         # from horizontal, to compute the link angle, and adjust it so that
         # the linke is pointing straight up, it's 0, to find theta2
 
-        theta2 = (pi/2 - (o2o4horz + o2a)).evalf() # straight up is zero for robot
+        theta2 = np.pi/2 - (o2o4horz + o2a)             # straight up is zero for robot
 
         # print "Theta2 is", self.r_to_d(theta2), "which is pi/2 - o2a - o2o4horz", self.r_to_d(o2a), self.r_to_d(o2o4horz)
 
         # Now that we know theta2 (and q2) use FK to compute location of o3
 
-        T2 = self.getT(2, t1=theta1, t2=theta2-pi/2)
+        T2 = self.getT(2, t1=theta1, t2=theta2)
 
-        # print "q2 is", self.r_to_d(theta2-pi/2)
+        # print "q2 is", self.r_to_d(theta2-np.pi/2)
 
-        o3 = T2*Matrix([1.25, 0.0, 0.0, 1])
+        o3 = T2*np.matrix([1.25, 0.0, 0.0, 1]).T
 
         # print "o3 is:"
         # pprint(o3)
@@ -353,16 +424,16 @@ class Kuka_KR210:
 
         # So first, calcuate the angular offset we need based on physical arm numbers.
         
-        o3o4offset = atan2(0.054, 1.5).evalf()
+        o3o4offset = np.arctan2(0.054, 1.5)
 
-        theta3 = (pi/2 - (o3a + o3o4offset)).evalf()
+        theta3 = np.pi/2 - (o3a + o3o4offset)
         
         # print "o3o4offset angle is", self.r_to_d(o3o4offset), "theta3 is", self.r_to_d(theta3)
 
         # Use FK to find o4 location
 
-        T3 = self.getT(3, t1=theta1, t2=theta2-pi/2, t3=theta3)
-        o4 = (T3*Matrix([-0.054, 1.5, 0.0, 1])).evalf()
+        T3 = self.getT(3, t1=theta1, t2=theta2, t3=theta3)
+        o4 = T3*np.matrix([-0.054, 1.5, 0.0, 1]).T
 
         # print "o4 is", o4
         # print "wc (should be same as 04)", wc
@@ -370,28 +441,28 @@ class Kuka_KR210:
         if 0:
             # just more debug and test code
             # compute angles from the joint locations we found using FK
-            theta1o2 = atan2(o2[1], o2[0])
-            theta1o3 = atan2(o3[1], o3[0])
-            theta1o4 = atan2(o4[1], o4[0])
-            theta1wc = atan2(wc[1], wc[0])
+            theta1o2 = np.arctan2(o2[1], o2[0])
+            theta1o3 = np.arctan2(o3[1], o3[0])
+            theta1o4 = np.arctan2(o4[1], o4[0])
+            theta1wc = np.arctan2(wc[1], wc[0])
 
             print "theta1 is", theta1, "and theta1o4,o2,wc,o3", theta1o4, theta1o2, theta1wc, theta1o3
 
             # compute lengths for testing
 
             # What's the distance from o3 to o4?  and o3 to wc?
-            # o3o4distance = sqrt((o3[0]-o4[0])**2 + (o3[1]-o4[1])**2 + (o3[2]-o4[2])**2)
+            # o3o4distance = np.sqrt((o3[0]-o4[0])**2 + (o3[1]-o4[1])**2 + (o3[2]-o4[2])**2)
             o3o4distance = self.distance(o3, o4)
             print "distance from o3 to o4 is", o3o4distance, "should be same as l34:", l34, "which should be a little bit larget than 1.5"
-            #o3wcdistance = sqrt((o3[0]-wc[0])**2 + (o3[1]-wc[1])**2 + (o3[2]-wc[2])**2)
+            #o3wcdistance = np.sqrt((o3[0]-wc[0])**2 + (o3[1]-wc[1])**2 + (o3[2]-wc[2])**2)
             o3wcdistance = self.distance(o3, wc)
             print "distance from o3 to wc is", o3wcdistance, "should be same as l34:", l34, "which should be a little bit larget than 1.5"
 
             print "distance from o2 to o3", self.distance(o2, o3)
             print "distance from o2 to wc", self.distance(o2, wc)
             print "distance from o2 to o4", self.distance(o2, o4)
-            print "distance from 000 to o2", self.distance(Matrix([0,0,0]), o2)
-            print "distance from .35/.75", sqrt(.35**2 + .75**2)
+            print "distance from 000 to o2", self.distance(np.matrix([0,0,0]).T, o2)
+            print "distance from .35/.75", np.sqrt(.35**2 + .75**2)
 
         if 0:
             # More debug and test
@@ -400,9 +471,9 @@ class Kuka_KR210:
             l34 = self.distance(o3, o4)
             l24 = self.distance(o2, o4)
             print "NEW tri sides (l34, l23, l24)", l34, l23, l24
-            o3a = acos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
-            o2a = acos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
-            o4a = (pi - o3a - o2a).evalf()
+            o3a = np.arccos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
+            o2a = np.arccos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
+            o4a = np.pi - o3a - o2a
             print "NEW triangles are", self.r_to_d(o3a), self.r_to_d(o2a), self.r_to_d(o4a)
 
         #############################################
@@ -421,6 +492,11 @@ class Kuka_KR210:
 
         R3_w = T3.transpose()[:3,:3] * R_rpy
 
+        # print "R3_w"
+        # pprint(R3_w)
+        # print "R3_w*self.rot_z(180)*self.rot_y(-90)"
+        # pprint(R3_w*self.rot_z(180)*self.rot_y(-90))
+
         # R3_w now translates from link3 local frame (z along gripper,  x up) to
         # the gripper frame, expressed in world frame axis convention of z up
         # and x down gripper axis.
@@ -430,7 +506,7 @@ class Kuka_KR210:
         # The z and x rotation sequence below moves from linke 3 axes to world
         # axis.  So we transpose (invert for R) to remove them from R3_w
 
-        R3_6 = (R3_w * (rot_z(pi/2) * rot_x(pi/2)).transpose()).evalf()
+        R3_6 = R3_w * (self.rot_z(np.pi/2) * self.rot_x(np.pi/2)).T
 
         # R3_6 is now the needed wrist rotations, in terms of the
         # link3 frame of x up and y forward.
@@ -455,18 +531,18 @@ class Kuka_KR210:
         theta6 = g
 
         if debug:
-            tt = self.getT(7, t1=theta1, t2=theta2-pi/2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
-            ttr = self.getT(8, t1=theta1, t2=theta2-pi/2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
+            tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
+            ttr = self.getT(8, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
 
-            tt_end = tt * Matrix([0,0,0,1])
-            tt_wc = ttr * Matrix([-self.wrist_length,0,0,1])
+            tt_end = tt * np.matrix([0,0,0,1]).T
+            tt_wc = ttr * np.matrix([-self.wrist_length,0,0,1]).T
 
             if 0:
                 print "tt is", np.array(tt).astype(np.float64)
-                print "tt_end is", tt_end
-                print "tt_wc is", tt_wc
+                print "tt_end is", tt_end.T
+                print "tt_wc is", tt_wc.T
                 print "distance from tt_end to wc is", self.distance(wc, tt_end)
-                print "distance from tt_end to pxyz is", self.distance(tt_end, Matrix([px, py, pz]))
+                print "distance from tt_end to pxyz is", self.distance(tt_end, np.matrix([px, py, pz]).T)
 
             Rtt = np.array(ttr[:3,:3]).astype(np.float64)
 
@@ -493,15 +569,40 @@ class Kuka_KR210:
         
             print "angles are:", theta1, theta2, theta3, theta4, theta5, theta6
 
+        if not debug:
+            print "angles are: %.4f %.4f %.4f %.4f %.4f %.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
+
         return theta1, theta2, theta3, theta4, theta5, theta6
 
     # Distance between two 3D points
     def distance(self, p1, p2):
-        return (sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)).evalf()
+        return (np.sqrt((p1[0,0]-p2[0,0])**2 + (p1[1,0]-p2[1,0])**2 + (p1[2,0]-p2[2,0])**2))
 
     # Radians to Degrees for debuging
     def r_to_d(self, x):
-        return (x * 180.0 / pi).evalf()
+        return x * 180.0 / np.pi
+
+    def rot_x(self, q):
+        R_x = np.matrix([[1, 0, 0],
+                    [0, np.cos(q), -np.sin(q)],
+                    [0, np.sin(q), np.cos(q)]])
+        
+        return R_x
+        
+    def rot_y(self, q):              
+        R_y = np.matrix([[np.cos(q), 0, np.sin(q)],
+                    [0, 1, 0],
+                    [-np.sin(q), 0, np.cos(q)]])
+        
+        return R_y
+
+    def rot_z(self, q):    
+        R_z = np.matrix([[np.cos(q), -np.sin(q), 0],
+                    [np.sin(q), np.cos(q), 0],
+                    [0, 0, 1]])
+        
+        return R_z
+
 
 Robot = None
 
