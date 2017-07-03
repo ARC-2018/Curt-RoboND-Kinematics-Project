@@ -166,6 +166,8 @@ class Kuka_KR210:
 
     def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
 
+        # Old version that used sympy --- worked fine, just way too slow for my taste
+
         # Return Homogeneous transformation matrix for arm frames
         # n controls which frame matrix is returned (1 to 8)
         # rotation_only controls if only the rotation matrix is returned.
@@ -292,7 +294,7 @@ class Kuka_KR210:
 
         return T_total
 
-    def do_IK(self, px, py, pz, roll, pitch, yaw, debug=False):
+    def do_IK(self, px, py, pz, roll, pitch, yaw, last_thetas=None, debug=False):
 
         print "---------------------------------------------------"
         print "px,   py,    pz  is", px, py, pz
@@ -530,6 +532,67 @@ class Kuka_KR210:
         theta5 = b
         theta6 = g
 
+        #####################################################################################
+        # If we know the last position, check all possible wrist solutions to see which is
+        # the closest to the last solution.
+        # theta4 and 6 can spin +- 350 but euler_from_matrix will only use +- 180
+        # We can take advantage of this etra twisting range to reduce the odds of a required
+        # wrist flip.
+        #####################################################################################
+
+        if last_thetas is not None:
+            last_a = last_thetas[3]
+            last_b = last_thetas[4]
+            last_g = last_thetas[5]
+
+            best_dist = None
+            best_a = None
+            best_b = None
+            best_g = None
+
+            for i in range(-2, 3): # itterate through all possible pi wrist flips
+                new_a = a + i * np.pi
+                if self.r_to_d(new_a) < -350 or self.r_to_d(new_a) > 350:
+                    # Outside of joint rotation range -- skip it
+                    continue
+                new_b = b
+                new_g = g
+                if i % 2 == 1:
+                    new_b = - new_b
+                    # we need to flip g +- pi as well
+                    # Pick the one that is closest to the last
+                    g1 = g-np.pi
+                    g2 = g+np.pi
+                    if self.r_to_d(g1) < -350 or self.r_to_d(g1) > 350:
+                        # g1 doesn't work, use g2
+                        new_g = g2
+                    if self.r_to_d(g2) < -350 or self.r_to_d(g2) > 350:
+                        # g2 doesn't work, use g1
+                        new_g = g1
+                    if abs(g1-last_g) < abs(g2-last_g):
+                        new_g = g1 # g1 is closest to old
+                    else:
+                        new_g = g2 # g2 is closest to old
+                # new_a, new_b, new_g is a possible solution
+                # How close is new_a to the old?
+                dist = abs(new_a-last_a)
+                if best_dist is None or dist < best_dist:
+                    best_dist = dist
+                    best_a = new_a
+                    best_b = new_b
+                    best_g = new_g
+            if best_dist is not None and not np.allclose(best_a, theta4):
+                theta4 = best_a
+                theta5 = best_b
+                theta6 = best_g
+
+                print "instead of using ", a, b, g
+                print "using best abg of", theta4, theta5, theta6
+                print "  last_a was", last_a
+                print "  dist to last_a is", abs(theta4-last_a), "instead of", abs(last_a-a)
+                debug = True
+
+
         if debug:
             tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
             ttr = self.getT(8, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
@@ -614,6 +677,7 @@ def handle_calculate_IK(req):
     else:
         # Initialize service response
         joint_trajectory_list = []
+        last_thetas = None
         for x in xrange(0, len(req.poses)):
             # IK code starts here
             joint_trajectory_point = JointTrajectoryPoint()
@@ -633,7 +697,9 @@ def handle_calculate_IK(req):
             # Calculate joint angles using Geometric IK method
 
             global Robot
-            theta1, theta2, theta3, theta4, theta5, theta6 = Robot.do_IK(px, py, pz, roll, pitch, yaw)
+            theta1, theta2, theta3, theta4, theta5, theta6 = Robot.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas)
+
+            last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
 
             # print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
 
