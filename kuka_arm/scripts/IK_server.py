@@ -21,6 +21,7 @@ from geometry_msgs.msg import Pose
 from mpmath import *
 from sympy import *
 import numpy as np
+import time
 
 class Kuka_KR210:
     def __init__(self):
@@ -678,6 +679,7 @@ def handle_calculate_IK(req):
         # Initialize service response
         joint_trajectory_list = []
         last_thetas = None
+        t0 = time.clock()
         for x in xrange(0, len(req.poses)):
             # IK code starts here
             joint_trajectory_point = JointTrajectoryPoint()
@@ -708,6 +710,8 @@ def handle_calculate_IK(req):
 	    joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
 	    joint_trajectory_list.append(joint_trajectory_point)
 
+        t1 = time.clock()
+        print "total IK time", t1-t0, "time per step", (t1-t0)/len(joint_trajectory_list)
         rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
         return CalculateIKResponse(joint_trajectory_list)
 
