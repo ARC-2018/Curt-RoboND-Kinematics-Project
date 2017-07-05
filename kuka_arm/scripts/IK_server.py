@@ -23,6 +23,7 @@ from sympy import *
 import numpy as np
 import time
 
+
 class Kuka_KR210:
     def __init__(self):
         self.wrist_length = 0.303
@@ -529,15 +530,12 @@ class Kuka_KR210:
         if 0:
             print "using", t, "abg from R3_6 is", a2, b2, g2
 
-        theta4 = a
-        theta5 = b
-        theta6 = g
 
         #####################################################################################
         # If we know the last position, check all possible wrist solutions to see which is
         # the closest to the last solution.
         # theta4 and 6 can spin +- 350 but euler_from_matrix will only use +- 180
-        # We can take advantage of this etra twisting range to reduce the odds of a required
+        # We can take advantage of this extra twisting range to reduce the odds of a required
         # wrist flip.
         #####################################################################################
 
@@ -546,53 +544,12 @@ class Kuka_KR210:
             last_b = last_thetas[4]
             last_g = last_thetas[5]
 
-            best_dist = None
-            best_a = None
-            best_b = None
-            best_g = None
+            a, b, g = self.find_best_wrist(a, b, g, last_a, last_b, last_g)
+            debug = True
 
-            for i in range(-2, 3): # itterate through all possible pi wrist flips
-                new_a = a + i * np.pi
-                if self.r_to_d(new_a) < -350 or self.r_to_d(new_a) > 350:
-                    # Outside of joint rotation range -- skip it
-                    continue
-                new_b = b
-                new_g = g
-                if i % 2 == 1:
-                    new_b = - new_b
-                    # we need to flip g +- pi as well
-                    # Pick the one that is closest to the last
-                    g1 = g-np.pi
-                    g2 = g+np.pi
-                    if self.r_to_d(g1) < -350 or self.r_to_d(g1) > 350:
-                        # g1 doesn't work, use g2
-                        new_g = g2
-                    if self.r_to_d(g2) < -350 or self.r_to_d(g2) > 350:
-                        # g2 doesn't work, use g1
-                        new_g = g1
-                    if abs(g1-last_g) < abs(g2-last_g):
-                        new_g = g1 # g1 is closest to old
-                    else:
-                        new_g = g2 # g2 is closest to old
-                # new_a, new_b, new_g is a possible solution
-                # How close is new_a to the old?
-                dist = abs(new_a-last_a)
-                if best_dist is None or dist < best_dist:
-                    best_dist = dist
-                    best_a = new_a
-                    best_b = new_b
-                    best_g = new_g
-            if best_dist is not None and not np.allclose(best_a, theta4):
-                theta4 = best_a
-                theta5 = best_b
-                theta6 = best_g
-
-                print "instead of using ", a, b, g
-                print "using best abg of", theta4, theta5, theta6
-                print "  last_a was", last_a
-                print "  dist to last_a is", abs(theta4-last_a), "instead of", abs(last_a-a)
-                debug = True
-
+        theta4 = a
+        theta5 = b
+        theta6 = g
 
         if debug:
             tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
@@ -637,6 +594,85 @@ class Kuka_KR210:
             print "angles are: %.4f %.4f %.4f %.4f %.4f %.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
 
         return theta1, theta2, theta3, theta4, theta5, theta6
+        
+    #
+    # find_best_wrist() -- find the best wrist postion based on last position
+    #
+    # Uses a,b,g calucated by tf which are limited to +- 180 to find alternative
+    # angles that will reduce the need for 180 deg filps.  joint 4, and 6 have
+    # a range of +-350 deg so by making use of this larger range some need to rotate
+    # the wrist can be eliminated.
+    #
+    # The theory here, is that the axies of the wrist (joint 5) is correct and in the position it
+    # must be in for all solutions. But, it can be rotated a full 180 to flip the top
+    # and bottom of the wrist.  So to flip joint 5 upside down, we rotate joint 4 and 5 180 deg, and
+    # set joint 5 to the negative of it's angle.  And we can also rotate the last joint, 360 degrees
+    # from this starting position in any directin that keeps it within it's +350 -305 range.
+    #
+    # So, we itterate through all combination of angles that are compatible with the given a,b,g
+    # solution and find the one with the least amount of change from the last.  But, the concept
+    # of "best" here is complex with no single right answer.
+    #
+
+    def find_best_wrist(self, a, b, g, last_a, last_b, last_g):
+
+        best_dist = None
+        best_a = None
+        best_b = None
+        best_g = None
+
+        for i in range(-3, 4): # itterate through all possible +-pi wrist flips for joint 4
+            new_a = a + i * np.pi
+            if self.r_to_d(new_a) <= -350 or self.r_to_d(new_a) >= 350:
+                # Outside of joint rotation range -- skip it
+                continue
+            new_b = b
+            new_g = g
+            g_offset = 0
+            if i % 2 == 1: # odd number of pi
+                new_b = - new_b
+                # we need to flip g +- pi as well
+                g_offset = np.pi
+            for j in range(-4, 5): # itterate through all possible +-pi wrist flips for joint 6
+                new_g = g + j * np.pi + g_offset
+                if self.r_to_d(new_g) <= -350 or self.r_to_d(new_g) >= 350:
+                    # Outside of joint rotation range -- skip it
+                    continue
+
+                # new_a, new_b, new_g is a possible solution
+                # How close is new_a to the old?
+                # Try sum of total rotations of all 3 joints as measure of best
+
+                max_dist = max([abs(new_a-last_a), abs(new_b-last_b), abs(new_g-last_g)])
+                sum_dist = abs(new_a-last_a) + abs(new_b-last_b) + abs(new_g-last_g)
+
+                if 1:
+                    print "ij %3d %3d abj %6.3f %6.3f %6.3f max dist %6.3f sum dist %6.3f" % (i, j, new_a, new_b, new_g, max_dist, sum_dist),
+                    if np.allclose([a, b, g], [new_a, new_b, new_g]):
+                       print "starting default",
+                    print
+
+                dist = sum_dist
+
+                if best_dist is None or dist < best_dist:
+                    best_dist = dist
+                    best_a = new_a
+                    best_b = new_b
+                    best_g = new_g
+
+        if best_dist is not None and not np.allclose(best_a, a):
+            if 1:
+                print "Using %6.3f %6.3f %6.3f instead of %6.3f %6.3f %6.3f" % (best_a, best_b, best_g, a, b, g),
+                if best_a < np.pi < 2 or best_a > np.pi/2:
+                    print "ALPHA extended",
+                if best_g < np.pi < 2 or best_g > np.pi/2:
+                    print "GAMMA extended",
+                print
+
+            return best_a, best_b, best_g
+
+        return a, b, g # Couldn't find anything better
+
 
     # Distance between two 3D points
     def distance(self, p1, p2):
@@ -670,6 +706,54 @@ class Kuka_KR210:
 
 Robot = None
 
+def get_wrist_position(p, quant, info):
+    (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(quant)
+    print "get_wrist_position info is", info
+    l_test(quant, roll, pitch, yaw, p[0], p[1], p[2])
+
+    print "Call do_IK"
+    Robot.do_IK(p[0], p[1], p[2], roll, pitch, yaw)
+    print "------------ get wrist done"
+
+def l_test(quant, r,p,y, p_x,p_y,p_z):
+    R0_G = tf.transformations.quaternion_matrix(quant) #given a input
+    re_orient=Matrix([[-1, 0, 0,  0],
+    [ 0, -1, 0, 0],
+    [ 0, 0,  -1, 0],
+    [ 0, 0, 0,  1]])
+
+    # Rrpy=R0_G*re_orient
+    Rrpy=R0_G
+
+    print "Rrpy", Rrpy
+    print 
+
+
+    global Robot
+    curt_rpy = Robot.rot_z(y)*Robot.rot_y(p)*Robot.rot_x(r) # Extrinsic r, p, y
+    print "curt rpy", curt_rpy
+
+
+    l_x = Rrpy[0,0]
+    l_y = Rrpy[1,0]
+    l_z = Rrpy[2,0]
+
+    #print(l_x,l_y,l_z)
+    eel=0.303
+    d6=0
+
+    if 0:
+        p_x=P_G[0]
+        p_y=P_G[1]
+        p_z=P_G[2]
+
+    p_wc_x=p_x-(d6+eel)*l_x
+    p_wc_y=p_y-(d6+eel)*l_y
+    p_wc_z=p_z-(d6+eel)*l_z
+
+    print "pwc", p_wc_x, p_wc_y, p_wc_z
+    
+
 def handle_calculate_IK(req):
     rospy.loginfo("Received %s eef-poses from the plan" % len(req.poses))
     if len(req.poses) < 1:
@@ -701,6 +785,11 @@ def handle_calculate_IK(req):
             global Robot
             theta1, theta2, theta3, theta4, theta5, theta6 = Robot.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas)
 
+            if 0: # help another student
+                l_test([req.poses[x].orientation.x, req.poses[x].orientation.y,
+                                req.poses[x].orientation.z, req.poses[x].orientation.w], roll, pitch, yaw, px, py, pz)
+                get_wrist_position([1.5,-0.3,1.04],[-0.299,-0.322,-0.635,0.634], "[1.3,-0.3,0.8] and it should be [1.50,0,1.038]")
+
             last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
 
             # print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
@@ -728,3 +817,4 @@ def IK_server():
 
 if __name__ == "__main__":
     IK_server()
+
