@@ -31,7 +31,7 @@ class Kuka_KR210:
             self.test1()
         if 0:
             self.test2()
-        if 1:
+        if 0:
             self.test3()
 
     def test1(self):
@@ -854,7 +854,8 @@ def handle_calculate_IK(req):
 
     if len(req.poses) < 1:
         print "No valid poses received"
-        return -1
+        return CalculateIKResponse([]) # return with empty list
+        # return -1
 
     # Initialize service response
     joint_trajectory_list = []
