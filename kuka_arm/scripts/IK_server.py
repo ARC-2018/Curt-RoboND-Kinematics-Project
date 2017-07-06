@@ -28,9 +28,13 @@ class Kuka_KR210:
     def __init__(self):
         self.wrist_length = 0.303
         if 0:
-            self.do_test()
+            self.test1()
+        if 0:
+            self.test2()
+        if 1:
+            self.test3()
 
-    def do_test(self):
+    def test1(self):
         # Test IK code
         if 1:
             # One real simple from runing the demo
@@ -45,18 +49,77 @@ class Kuka_KR210:
         if 1:
             # test for guy on slack that broke my code
             # high test wc inside j2 circle
-            print np.arctan2(0.229042, 0.165865)
+            # print np.arctan2(0.229042, 0.165865)
             px,py,pz = 0.165865+0.303, 0.229042, 2.5848
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
         if 1:
-            # Low test fixking above high test borke this?
+            # Low test fixing above high test borke this?
             px,py,pz = 1.0+0.303, 1.0, 0.2
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
 
         sys.exit(0)
 
+    def test_angles(self, angle_list):
+
+        last_thetas = None
+
+        for a in angle_list:
+            print "------------------------------------"
+            print "In test1, starting angles are", a
+            px, py, pz, roll, pitch, yaw = self.do_FK(a)
+            theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas, debug=True)
+            last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
+
+        sys.exit(0)
+
+    def test2(self):
+
+        # This set of numbers failed to produce the correct wrist roations
+        # so I've captured the log output and turned it into a test case.
+        
+        angle_list = []
+
+        angle_list.append([0.2174, 0.0370, -0.1521, 2.6957, 0.2989, -2.7292])
+        angle_list.append([0.2448, 0.0503, -0.1755, 2.9590, 0.3327, -2.9958])
+
+        # Bug was here, next should have joint 6 of -3 -- found bug and fixed it...
+
+        angle_list.append([0.2629, 0.0589, -0.1912, 3.1268, 0.3536, 3.1174])
+        angle_list.append([0.2814, 0.0674, -0.2076, 3.2944, 0.3736, 2.9478])
+
+        self.test_angles(angle_list)
+
+    def test3(self):
+        # An over the head reach test
+
+        angle_list = []
+        angle_list.append([0.0001, -0.0882, 0.0850, 0.0000, 0.0033, 0.0001])
+        angle_list.append([0.1320, -0.1152, -0.0175, 0.0748, -0.0114, 0.0572])
+        angle_list.append([0.2641, -0.1431, -0.1191, 0.1314, -0.0260, 0.1325])
+        angle_list.append([0.3963, -0.1721, -0.2194, 0.1886, -0.0404, 0.2071])
+        angle_list.append([0.5286, -0.2022, -0.3184, 0.2444, -0.0546, 0.2830])
+        angle_list.append([0.6612, -0.2335, -0.4156, 0.2976, -0.0685, 0.3614])
+        angle_list.append([0.7941, -0.2663, -0.5106, 0.3469, -0.0824, 0.4434])
+        angle_list.append([0.9274, -0.3009, -0.6028, 0.3910, -0.0961, 0.5303])
+        angle_list.append([1.0615, -0.3378, -0.6911, 0.4279, -0.1100, 0.6236])
+        angle_list.append([1.1799, -0.3723, -0.7642, 0.4523, -0.1225, 0.7114])
+        angle_list.append([1.3017, -0.4097, -0.8322, 0.4674, -0.1357, 0.8052])
+        angle_list.append([1.4368, -0.4506, -0.8939, 0.4684, -0.1508, 0.8999])
+        angle_list.append([-3.0150, -0.4942, -0.9446, -0.1602, -0.2005, -0.0786])
+        angle_list.append([-1.4371, -0.4340, -0.8050, -0.6709, -0.1373, -0.7225])
+        angle_list.append([-1.2128, -0.3768, -0.6506, -0.6642, -0.1464, -0.5273])
+        angle_list.append([-1.0297, -0.3290, -0.5158, -0.6109, -0.1570, -0.4049])
+        angle_list.append([-0.8480, -0.2799, -0.3790, -0.5291, -0.1693, -0.3096])
+        angle_list.append([-0.6838, -0.2335, -0.2547, -0.4387, -0.1816, -0.2388])
+        angle_list.append([-0.5199, -0.1845, -0.1310, -0.3386, -0.1949, -0.1773])
+        angle_list.append([-0.3900, -0.1433, -0.0338, -0.2553, -0.2064, -0.1321])
+        angle_list.append([-0.2601, -0.0997, 0.0624, -0.1705, -0.2187, -0.0879])
+        angle_list.append([-0.1301, -0.0533, 0.1572, -0.0861, -0.2320, -0.0432])
+        angle_list.append([-0.0002, -0.0035, 0.2503, -0.0033, -0.2463, 0.0038])
+
+        self.test_angles(angle_list)
 
     def getR(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
         # Get rotation matrix for different arm frames, n=1 to 8
@@ -296,11 +359,33 @@ class Kuka_KR210:
 
         return T_total
 
+    #
+    # Forward Kenimatics for arm
+    #
+
+    def do_FK(self, thetas, debug=False):
+        t = self.getT(8, t1=thetas[0], t2=thetas[1], t3=thetas[2], t4=thetas[3], t5=thetas[4], t6=thetas[5])
+
+        px = t[0,3]
+        py = t[1,3]
+        pz = t[2,3]
+
+        roll, pitch, yaw = tf.transformations.euler_from_matrix(np.array(t[:3,:3]).astype(np.float64), axes='sxyz')
+
+        # print "FK px py pz r p y", px, py, pz, roll, pitch, yaw
+
+        return px, py, pz, roll, pitch, yaw
+        
+    #
+    # Inverse Kenimatics for arm
+    #
+
     def do_IK(self, px, py, pz, roll, pitch, yaw, last_thetas=None, debug=False):
 
-        print "---------------------------------------------------"
-        print "px,   py,    pz  is", px, py, pz
-        print "roll, pitch, yaw is", roll, pitch, yaw
+        if debug:
+            print "---------------------------------------------------"
+            print "px,   py,    pz  is", px, py, pz
+            print "roll, pitch, yaw is", roll, pitch, yaw
 
         #################################
         # Back calculate wrist position
@@ -545,20 +630,19 @@ class Kuka_KR210:
             last_g = last_thetas[5]
 
             a, b, g = self.find_best_wrist(a, b, g, last_a, last_b, last_g)
-            debug = True
 
         theta4 = a
         theta5 = b
         theta6 = g
 
-        if debug:
+        if 1:
             tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
             ttr = self.getT(8, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
 
             tt_end = tt * np.matrix([0,0,0,1]).T
-            tt_wc = ttr * np.matrix([-self.wrist_length,0,0,1]).T
 
             if 0:
+                tt_wc = ttr * np.matrix([-self.wrist_length,0,0,1]).T
                 print "tt is", np.array(tt).astype(np.float64)
                 print "tt_end is", tt_end.T
                 print "tt_wc is", tt_wc.T
@@ -587,12 +671,10 @@ class Kuka_KR210:
                 print "ERROR -- final gripper pose fails to match target"
                 print "  target roll pitch yaw:", roll, pitch, yaw
                 print "  result roll pitch yaw:", r, p, y
+
+        if debug:
+            print "joint angles: %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
         
-            print "angles are:", theta1, theta2, theta3, theta4, theta5, theta6
-
-        if not debug:
-            print "angles are: %.4f %.4f %.4f %.4f %.4f %.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
-
         return theta1, theta2, theta3, theta4, theta5, theta6
         
     #
@@ -609,7 +691,7 @@ class Kuka_KR210:
     # set joint 5 to the negative of it's angle.  And we can also rotate the last joint, 360 degrees
     # from this starting position in any directin that keeps it within it's +350 -305 range.
     #
-    # So, we itterate through all combination of angles that are compatible with the given a,b,g
+    # So, we iterate through all combination of angles that are compatible with the given a,b,g
     # solution and find the one with the least amount of change from the last.  But, the concept
     # of "best" here is complex with no single right answer.
     #
@@ -621,7 +703,7 @@ class Kuka_KR210:
         best_b = None
         best_g = None
 
-        for i in range(-3, 4): # itterate through all possible +-pi wrist flips for joint 4
+        for i in range(-3, 4): # iterate through all possible +-pi wrist flips for joint 4
             new_a = a + i * np.pi
             if self.r_to_d(new_a) <= -350 or self.r_to_d(new_a) >= 350:
                 # Outside of joint rotation range -- skip it
@@ -633,8 +715,8 @@ class Kuka_KR210:
                 new_b = - new_b
                 # we need to flip g +- pi as well
                 g_offset = np.pi
-            for j in range(-4, 5): # itterate through all possible +-pi wrist flips for joint 6
-                new_g = g + j * np.pi + g_offset
+            for j in range(-2, 3): # iterate through all possible +-2*pi wrist flips for joint 6
+                new_g = g + j * 2 * np.pi + g_offset
                 if self.r_to_d(new_g) <= -350 or self.r_to_d(new_g) >= 350:
                     # Outside of joint rotation range -- skip it
                     continue
@@ -646,8 +728,8 @@ class Kuka_KR210:
                 max_dist = max([abs(new_a-last_a), abs(new_b-last_b), abs(new_g-last_g)])
                 sum_dist = abs(new_a-last_a) + abs(new_b-last_b) + abs(new_g-last_g)
 
-                if 1:
-                    print "ij %3d %3d abj %6.3f %6.3f %6.3f max dist %6.3f sum dist %6.3f" % (i, j, new_a, new_b, new_g, max_dist, sum_dist),
+                if 0:
+                    print "ij %3d %3d   abj %6.3f %6.3f %6.3f   sum dist %6.3f" % (i, j, new_a, new_b, new_g, sum_dist),
                     if np.allclose([a, b, g], [new_a, new_b, new_g]):
                        print "starting default",
                     print
@@ -660,16 +742,20 @@ class Kuka_KR210:
                     best_b = new_b
                     best_g = new_g
 
-        if best_dist is not None and not np.allclose(best_a, a):
-            if 1:
+        if best_dist is not None and not np.allclose((a, b, g), (best_a, best_b, best_g)):
+            if 0:
                 print "Using %6.3f %6.3f %6.3f instead of %6.3f %6.3f %6.3f" % (best_a, best_b, best_g, a, b, g),
+                print " total wrist roations %6.3f" % best_dist,
                 if best_a < np.pi < 2 or best_a > np.pi/2:
-                    print "ALPHA extended",
+                    print " ALPHA extended",
                 if best_g < np.pi < 2 or best_g > np.pi/2:
-                    print "GAMMA extended",
+                    print " GAMMA extended",
                 print
 
             return best_a, best_b, best_g
+        
+        if 0:
+            print " total wrist roations %6.3f" % best_dist
 
         return a, b, g # Couldn't find anything better
 
@@ -677,6 +763,9 @@ class Kuka_KR210:
     # Distance between two 3D points
     def distance(self, p1, p2):
         return (np.sqrt((p1[0,0]-p2[0,0])**2 + (p1[1,0]-p2[1,0])**2 + (p1[2,0]-p2[2,0])**2))
+
+    def tuple_distance(self, p1, p2):
+        return (np.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2))
 
     # Radians to Degrees for debuging
     def r_to_d(self, x):
@@ -706,6 +795,8 @@ class Kuka_KR210:
 
 Robot = None
 
+## Test code to help another student debug their code
+##
 def get_wrist_position(p, quant, info):
     (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(quant)
     print "get_wrist_position info is", info
@@ -755,59 +846,99 @@ def l_test(quant, r,p,y, p_x,p_y,p_z):
     
 
 def handle_calculate_IK(req):
+    global Robot
+    global Last_position
+    global Last_thetas
+
     rospy.loginfo("Received %s eef-poses from the plan" % len(req.poses))
+
     if len(req.poses) < 1:
         print "No valid poses received"
         return -1
-    else:
-        # Initialize service response
-        joint_trajectory_list = []
-        last_thetas = None
-        t0 = time.clock()
-        for x in xrange(0, len(req.poses)):
-            # IK code starts here
-            joint_trajectory_point = JointTrajectoryPoint()
 
-            # Extract end-effector position and orientation from request
-	        # px,py,pz = end-effector position
-	        # roll, pitch, yaw = end-effector orientation
+    # Initialize service response
+    joint_trajectory_list = []
+    last_thetas = None
+    last_position = None
+    t0 = time.clock()
 
-            px = req.poses[x].position.x
-            py = req.poses[x].position.y
-            pz = req.poses[x].position.z
+    for x in xrange(0, len(req.poses)):
+        # IK code starts here
 
-            (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
-                [req.poses[x].orientation.x, req.poses[x].orientation.y,
-                    req.poses[x].orientation.z, req.poses[x].orientation.w])
+        # Extract end-effector position and orientation from request
+        # px,py,pz = end-effector position
+        # roll, pitch, yaw = end-effector orientation
 
-            # Calculate joint angles using Geometric IK method
+        px = req.poses[x].position.x
+        py = req.poses[x].position.y
+        pz = req.poses[x].position.z
 
-            global Robot
-            theta1, theta2, theta3, theta4, theta5, theta6 = Robot.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas)
 
-            if 0: # help another student
-                l_test([req.poses[x].orientation.x, req.poses[x].orientation.y,
-                                req.poses[x].orientation.z, req.poses[x].orientation.w], roll, pitch, yaw, px, py, pz)
-                get_wrist_position([1.5,-0.3,1.04],[-0.299,-0.322,-0.635,0.634], "[1.3,-0.3,0.8] and it should be [1.50,0,1.038]")
+        (roll, pitch, yaw) = tf.transformations.euler_from_quaternion(
+            [req.poses[x].orientation.x, req.poses[x].orientation.y,
+                req.poses[x].orientation.z, req.poses[x].orientation.w])
 
-            last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
+        # Calculate joint angles using Geometric IK method
 
-            # print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
 
-            # Populate response for the IK request
+        if last_thetas is None and Last_thetas is not None:
+            # First position of this request.
+            # If the position of this request is near to the last position of the last
+            # request, we assume the wrist is still in the same orrientation (only a valid
+            # idea for this class project, not good in general), and if so, we use the
+            # last_thetas from the previous request to help prevent unnesaary wrist flips
+            # for this move.  This ofen happens in this project aftr the arm has made the move
+            # to grab the blue rod, but before it moves to the drop off bin.  This prevents
+            # a wrist flip at the start of the move to the bin -- which then causes the wrist
+            # flip to "unwind" the twisted wrist to happen after the drop off, when it's swining
+            # back to reset to the start.  Which I like better, than flipping while it's holding
+            # the blue rod!
+            # print "Distance from last known location is", Robot.tuple_distance(Last_position, (px, py, pz))
+            if Robot.tuple_distance(Last_position, (px, py, pz)) < 0.1:
+                # Wrist starting position is near the end of the last move, so we assume
+                # the wrist orriention is the same as we left it last time (true for this project)
+                last_thetas = Last_thetas
+                # print "Using Last_thetas to help optimize first move of this request!"
+        theta1, theta2, theta3, theta4, theta5, theta6 = Robot.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas)
 
-	    joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
-	    joint_trajectory_list.append(joint_trajectory_point)
+        rospy.loginfo("IK joint angles: %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f" % (theta1, theta2, theta3, theta4, theta5, theta6))
 
-        t1 = time.clock()
-        print "total IK time", t1-t0, "time per step", (t1-t0)/len(joint_trajectory_list)
-        rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
-        return CalculateIKResponse(joint_trajectory_list)
+        if 0: # help another student
+            l_test([req.poses[x].orientation.x, req.poses[x].orientation.y,
+                            req.poses[x].orientation.z, req.poses[x].orientation.w], roll, pitch, yaw, px, py, pz)
+            get_wrist_position([1.5,-0.3,1.04],[-0.299,-0.322,-0.635,0.634], "[1.3,-0.3,0.8] and it should be [1.50,0,1.038]")
+
+        last_position = (px, py, pz)
+        last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
+
+        # print "thetas are", theta1, theta2, theta3, theta4, theta5, theta6
+
+        # Populate response for the IK request
+
+        joint_trajectory_point = JointTrajectoryPoint()
+        joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
+        joint_trajectory_list.append(joint_trajectory_point)
+
+    Last_position = last_position
+    Last_thetas = last_thetas
+
+    t1 = time.clock()
+    steps = len(joint_trajectory_list)
+
+    rospy.loginfo("total IK time %4.1f msec for %d steps, %5.3f msec per step" % ((t1-t0)*1000.0, steps, (t1-t0)*1000.0/steps))
+    rospy.loginfo("length of Joint Trajectory List: %s" % len(joint_trajectory_list))
+    return CalculateIKResponse(joint_trajectory_list)
 
 def IK_server():
     # Init robot arm
     global Robot
     Robot = Kuka_KR210()
+
+    global Last_position
+    Last_position = None
+    global Last_thetas
+    Last_thetas = None
+
     # initialize node and declare calculate_ik service
     rospy.init_node('IK_server')
     s = rospy.Service('calculate_ik', CalculateIK, handle_calculate_IK)
@@ -817,4 +948,5 @@ def IK_server():
 
 if __name__ == "__main__":
     IK_server()
+
 
