@@ -34,6 +34,30 @@ class Kuka_KR210:
         if 0:
             self.test3()
 
+    def joint1_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -185 and deg <= 185
+
+    def joint2_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -45 and deg <= 85
+
+    def joint3_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -210 and deg <= (155-90)
+
+    def joint4_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -350 and deg <= 350
+        
+    def joint5_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -125 and deg <= 125
+
+    def joint6_in_range(self, radians):
+        deg = self.r_to_d(radians)
+        return deg >= -350 and deg <= 350
+
     def test1(self):
         # Test IK code
         if 1:
@@ -66,13 +90,11 @@ class Kuka_KR210:
         last_thetas = None
 
         for a in angle_list:
-            print "------------------------------------"
+            print "----------------------------------------------------------------------"
             print "In test1, starting angles are", a
             px, py, pz, roll, pitch, yaw = self.do_FK(a)
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=last_thetas, debug=True)
             last_thetas = (theta1, theta2, theta3, theta4, theta5, theta6)
-
-        sys.exit(0)
 
     def test2(self):
 
@@ -91,35 +113,41 @@ class Kuka_KR210:
 
         self.test_angles(angle_list)
 
+        sys.exit(0)
+
     def test3(self):
         # An over the head reach test
 
         angle_list = []
-        angle_list.append([0.0001, -0.0882, 0.0850, 0.0000, 0.0033, 0.0001])
-        angle_list.append([0.1320, -0.1152, -0.0175, 0.0748, -0.0114, 0.0572])
-        angle_list.append([0.2641, -0.1431, -0.1191, 0.1314, -0.0260, 0.1325])
-        angle_list.append([0.3963, -0.1721, -0.2194, 0.1886, -0.0404, 0.2071])
-        angle_list.append([0.5286, -0.2022, -0.3184, 0.2444, -0.0546, 0.2830])
-        angle_list.append([0.6612, -0.2335, -0.4156, 0.2976, -0.0685, 0.3614])
-        angle_list.append([0.7941, -0.2663, -0.5106, 0.3469, -0.0824, 0.4434])
-        angle_list.append([0.9274, -0.3009, -0.6028, 0.3910, -0.0961, 0.5303])
-        angle_list.append([1.0615, -0.3378, -0.6911, 0.4279, -0.1100, 0.6236])
-        angle_list.append([1.1799, -0.3723, -0.7642, 0.4523, -0.1225, 0.7114])
-        angle_list.append([1.3017, -0.4097, -0.8322, 0.4674, -0.1357, 0.8052])
+        # angle_list.append([0.0001, -0.0882, 0.0850, 0.0000, 0.0033, 0.0001])
+        # angle_list.append([0.1320, -0.1152, -0.0175, 0.0748, -0.0114, 0.0572])
+        # angle_list.append([0.2641, -0.1431, -0.1191, 0.1314, -0.0260, 0.1325])
+        # angle_list.append([0.3963, -0.1721, -0.2194, 0.1886, -0.0404, 0.2071])
+        # angle_list.append([0.5286, -0.2022, -0.3184, 0.2444, -0.0546, 0.2830])
+        # angle_list.append([0.6612, -0.2335, -0.4156, 0.2976, -0.0685, 0.3614])
+        # angle_list.append([0.7941, -0.2663, -0.5106, 0.3469, -0.0824, 0.4434])
+        # angle_list.append([0.9274, -0.3009, -0.6028, 0.3910, -0.0961, 0.5303])
+        # angle_list.append([1.0615, -0.3378, -0.6911, 0.4279, -0.1100, 0.6236])
+        # angle_list.append([1.1799, -0.3723, -0.7642, 0.4523, -0.1225, 0.7114])
+        # angle_list.append([1.3017, -0.4097, -0.8322, 0.4674, -0.1357, 0.8052])
+        
         angle_list.append([1.4368, -0.4506, -0.8939, 0.4684, -0.1508, 0.8999])
-        angle_list.append([-3.0150, -0.4942, -0.9446, -0.1602, -0.2005, -0.0786])
+        angle_list.append([-3.0150, -0.4942, -0.9446, -0.1602, -0.2005, -0.0786]) # Base flip 
         angle_list.append([-1.4371, -0.4340, -0.8050, -0.6709, -0.1373, -0.7225])
         angle_list.append([-1.2128, -0.3768, -0.6506, -0.6642, -0.1464, -0.5273])
-        angle_list.append([-1.0297, -0.3290, -0.5158, -0.6109, -0.1570, -0.4049])
-        angle_list.append([-0.8480, -0.2799, -0.3790, -0.5291, -0.1693, -0.3096])
-        angle_list.append([-0.6838, -0.2335, -0.2547, -0.4387, -0.1816, -0.2388])
-        angle_list.append([-0.5199, -0.1845, -0.1310, -0.3386, -0.1949, -0.1773])
-        angle_list.append([-0.3900, -0.1433, -0.0338, -0.2553, -0.2064, -0.1321])
-        angle_list.append([-0.2601, -0.0997, 0.0624, -0.1705, -0.2187, -0.0879])
-        angle_list.append([-0.1301, -0.0533, 0.1572, -0.0861, -0.2320, -0.0432])
-        angle_list.append([-0.0002, -0.0035, 0.2503, -0.0033, -0.2463, 0.0038])
+
+        # angle_list.append([-1.0297, -0.3290, -0.5158, -0.6109, -0.1570, -0.4049])
+        # angle_list.append([-0.8480, -0.2799, -0.3790, -0.5291, -0.1693, -0.3096])
+        # angle_list.append([-0.6838, -0.2335, -0.2547, -0.4387, -0.1816, -0.2388])
+        # angle_list.append([-0.5199, -0.1845, -0.1310, -0.3386, -0.1949, -0.1773])
+        # angle_list.append([-0.3900, -0.1433, -0.0338, -0.2553, -0.2064, -0.1321])
+        # angle_list.append([-0.2601, -0.0997, 0.0624, -0.1705, -0.2187, -0.0879])
+        # angle_list.append([-0.1301, -0.0533, 0.1572, -0.0861, -0.2320, -0.0432])
+        # angle_list.append([-0.0002, -0.0035, 0.2503, -0.0033, -0.2463, 0.0038])
 
         self.test_angles(angle_list)
+
+        sys.exit(0)
 
     def getR(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
         # Get rotation matrix for different arm frames, n=1 to 8
@@ -427,17 +455,47 @@ class Kuka_KR210:
         ####################################
 
         # theta1 is set to the angle needed to turn the
-        # arm towards the wrist center.  We are assuming
-        # big joint2 will always be orriented nearer to
-        # the wrist center.  The robot can spin around 180
-        # and reach back to grab it, but we don't ever use
-        # That configuration in this code.
+        # arm towards the wrist center by default.  We try to face
+        # the big join2 near the wrist center.
+        # But if reaching over the back of the base (big joint
+        # away from the wrist center) pevents us from having
+        # to spin the base we will try that.
+        # The danger is that we may not be able to reach the
+        # target backwards, but we could if we spun the base.
+        # This code does not cope with that. If reaching backwareds
+        # prevents a base spin, we try it, and if we can't reach
+        # the correct base position, the code just blows up.
+        # For this class exercise, there are test cases where
+        # it needs to reach backwards over the center, but there
+        # are no cases where that backwards reach goess to far that
+        # know of. So this should be good enough.
+        # The "correct" way to code this is to find all possible
+        # combinations of all 6 joints that can reach the given pose
+        # and gripper location, and then pick from that list based
+        # what's closest to the last position.  But I did not code that
+        # for all 6 joints.
 
         theta1 = np.arctan2(wc[1,0], wc[0,0])       ## The simple one
+        reach_back = False              # do we reach back over the center?
+
+        if last_thetas is not None:
+            # Pick the theta1 that is the closest to the last theta used
+            # This allows the arm to reach up and over without spining the base around.
+            t1b = theta1 + np.pi
+            if not self.joint1_in_range(t1b):
+                t1b = theta1 - np.pi
+            if self.joint1_in_range(t1b):
+                # Ok, we have a good option to check
+                # It's not always possible for there to be a second option
+                if abs(t1b-last_thetas[0]) < abs(theta1-last_thetas[0]):
+                    # The backwards reach is closer to the last one
+                    if 0:
+                        print "----------We are flipping theta1!!!!----------------"
+                        print "from", theta1, "to", t1b
+                    theta1 = t1b
+                    reach_back = True
 
         # print "theta1 is", self.r_to_d(theta1), "degres"
-
-        o1 = np.matrix([0.0, 0.0, 0.75, 1.0]).T
 
         T2 = self.getT(2, t1=theta1, t2=0.0)
         o2 = T2 * np.matrix([0.0, 0.0, 0.0, 1.0]).T
@@ -461,7 +519,7 @@ class Kuka_KR210:
         # The third is computed since we know the location of o2 now, and
         # and the location of of the wrist center.
 
-        l34 = np.sqrt(.054**2 + 1.5**2) # Straignt line length from O3 to O4
+        l34 = np.sqrt(.054**2 + 1.5**2) # Straight line length from O3 to O4
         l23 = 1.25
         l24 = np.sqrt((wc[0,0]-o2[0,0])**2 + (wc[1,0]-o2[1,0])**2 + (wc[2,0]-o2[2,0])**2)
 
@@ -480,6 +538,8 @@ class Kuka_KR210:
 
         # Horizontal distance from wrist center, to z axes of orign (center of base)
         wc_to_0 = np.sqrt(wc[0,0]**2 + wc[1,0]**2)
+        if reach_back:
+            wc_to_0 = - wc_to_0 # Yes, this is complex
         # Horizontal distance from o2, to z axes of orign (center of base)
         o2_to_0 = np.sqrt(o2[0,0]**2 + o2[1,0]**2)
         # Angle from o2 to wc which will go negative if wc is inside rotaion circle
@@ -615,7 +675,6 @@ class Kuka_KR210:
         if 0:
             print "using", t, "abg from R3_6 is", a2, b2, g2
 
-
         #####################################################################################
         # If we know the last position, check all possible wrist solutions to see which is
         # the closest to the last solution.
@@ -635,42 +694,38 @@ class Kuka_KR210:
         theta5 = b
         theta6 = g
 
-        if 1:
-            tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
-            ttr = self.getT(8, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
+        #########################################
+        # Verify we got a valid answer!
+        #########################################
 
-            tt_end = tt * np.matrix([0,0,0,1]).T
+        tt = self.getT(7, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
+        ttr = self.getT(8, t1=theta1, t2=theta2, t3=theta3, t4=theta4, t5=theta5, t6=theta6)
 
-            if 0:
-                tt_wc = ttr * np.matrix([-self.wrist_length,0,0,1]).T
-                print "tt is", np.array(tt).astype(np.float64)
-                print "tt_end is", tt_end.T
-                print "tt_wc is", tt_wc.T
-                print "distance from tt_end to wc is", self.distance(wc, tt_end)
-                print "distance from tt_end to pxyz is", self.distance(tt_end, np.matrix([px, py, pz]).T)
+        tt_end = tt * np.matrix([0,0,0,1]).T
 
-            Rtt = np.array(ttr[:3,:3]).astype(np.float64)
+        if 0:
+            tt_wc = ttr * np.matrix([-self.wrist_length,0,0,1]).T
+            print "tt is", np.array(tt).astype(np.float64)
+            print "tt_end is", tt_end.T
+            print "tt_wc is", tt_wc.T
+            print "distance from tt_end to wc is", self.distance(wc, tt_end)
+            print "distance from tt_end to pxyz is", self.distance(tt_end, np.matrix([px, py, pz]).T)
 
-            # print "Rtt is", Rtt
+        Rtt = np.array(ttr[:3,:3]).astype(np.float64)
 
-            # r,p,y = tf.transformations.euler_from_matrix(Rtt)
-            # print "final rpy is", r, p, y
+        # print "Rtt is", Rtt
 
-            #########################################
-            # Verify we got a valid answer!
-            #########################################
+        end_xyz = np.array(tt_end[:3,:]).astype(np.float64).flatten()
+        if not np.allclose(end_xyz, [px, py, pz]):
+            print "ERROR -- final gripper location fails to match target"
+            print "  target px, py, pz", px, py, pz
+            print "  result px, py, pz", end_xyz[0], end_xyz[1], end_xyz[2]
 
-            end_xyz = np.array(tt_end[:3,:]).astype(np.float64).flatten()
-            if not np.allclose(end_xyz, [px, py, pz]):
-                print "ERROR -- final gripper location fails to match target"
-                print "  target px, py, pz", px, py, pz
-                print "  result px, py, pz", end_xyz[0], end_xyz[1], end_xyz[2]
-
-            r,p,y = tf.transformations.euler_from_matrix(Rtt)
-            if not np.allclose([roll, pitch, yaw], [r, p, y]):
-                print "ERROR -- final gripper pose fails to match target"
-                print "  target roll pitch yaw:", roll, pitch, yaw
-                print "  result roll pitch yaw:", r, p, y
+        r,p,y = tf.transformations.euler_from_matrix(Rtt)
+        if not np.allclose([roll, pitch, yaw], [r, p, y]):
+            print "ERROR -- final gripper pose fails to match target"
+            print "  target roll pitch yaw:", roll, pitch, yaw
+            print "  result roll pitch yaw:", r, p, y
 
         if debug:
             print "joint angles: %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
@@ -705,7 +760,7 @@ class Kuka_KR210:
 
         for i in range(-3, 4): # iterate through all possible +-pi wrist flips for joint 4
             new_a = a + i * np.pi
-            if self.r_to_d(new_a) <= -350 or self.r_to_d(new_a) >= 350:
+            if not self.joint4_in_range(new_a):
                 # Outside of joint rotation range -- skip it
                 continue
             new_b = b
@@ -717,7 +772,7 @@ class Kuka_KR210:
                 g_offset = np.pi
             for j in range(-2, 3): # iterate through all possible +-2*pi wrist flips for joint 6
                 new_g = g + j * 2 * np.pi + g_offset
-                if self.r_to_d(new_g) <= -350 or self.r_to_d(new_g) >= 350:
+                if not self.joint6_in_range(new_g):
                     # Outside of joint rotation range -- skip it
                     continue
 
