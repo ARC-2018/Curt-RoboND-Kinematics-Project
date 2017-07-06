@@ -10,7 +10,7 @@
 # Author: Harsh Pandya
 
 # Student: Curt Welch <curt@kcwc.com>
-# July 1, 2017
+# July 6, 2017
 
 # import modules
 import rospy
@@ -22,11 +22,13 @@ from mpmath import *
 from sympy import *
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
 class Kuka_KR210:
     def __init__(self):
         self.wrist_length = 0.303
+        self.error_data = None
         if 0:
             self.test1()
         if 0:
@@ -57,6 +59,20 @@ class Kuka_KR210:
     def joint6_in_range(self, radians):
         deg = self.r_to_d(radians)
         return deg >= -350 and deg <= 350
+
+    def start_error_plot(self):
+        if self.error_data is None:
+            self.error_data = [] # indicates we should collect error values
+
+    def show_error_plot(self):
+
+        if self.error_data is not None:
+            plt.plot(self.error_data, 'r^')
+            plt.ylabel('Position Error')
+            plt.show()
+
+        self.error_data = None
+
 
     def test1(self):
         # Test IK code
@@ -149,11 +165,18 @@ class Kuka_KR210:
 
         sys.exit(0)
 
+    #
+    # Create rotation matrix for each link
+    #
     def getR(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
         # Get rotation matrix for different arm frames, n=1 to 8
         r = self.getT(n, t1=t1, t2=td2, t3=t3, t4=t4, t5=t5, t6=t6)
         return r[:3,:3]
 
+    #
+    # Create Homogeneous transformation matrix
+    # Re-coded to use only numpy instead of sympy
+    #
     def getT(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
 
         # Return Homogeneous transformation matrix for arm frame.
@@ -166,6 +189,8 @@ class Kuka_KR210:
             return np.identity(4)
 
         # print "Calculate Forward Kinematic Matrix for n=", n
+
+        # DH table parameters
                 
         alpha0 = 0
         a0 = 0
@@ -251,12 +276,19 @@ class Kuka_KR210:
 
         return T_total
 
+    #
+    # Build a DH transform matrix from parameters
+    #
     def getDHT(self, alpha, a, d, theta):
         return np.matrix([[np.cos(theta),              -np.sin(theta),            0,              a],
-                        [np.sin(theta)*np.cos(alpha),  np.cos(theta)*np.cos(alpha), -np.sin(alpha),   -np.sin(alpha)*d],
-                        [np.sin(theta)*np.sin(alpha),  np.cos(theta)*np.sin(alpha), np.cos(alpha),   np.cos(alpha)*d],
-                        [0,                     0,                  0,              1]])
+                    [np.sin(theta)*np.cos(alpha),  np.cos(theta)*np.cos(alpha), -np.sin(alpha),   -np.sin(alpha)*d],
+                    [np.sin(theta)*np.sin(alpha),  np.cos(theta)*np.sin(alpha), np.cos(alpha),   np.cos(alpha)*d],
+                    [0,                     0,                  0,              1]])
 
+    #
+    # The old version of the getT() based on sympy
+    # too slow to use
+    #
     def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
 
         # Old version that used sympy --- worked fine, just way too slow for my taste
@@ -388,7 +420,7 @@ class Kuka_KR210:
         return T_total
 
     #
-    # Forward Kenimatics for arm
+    # Forward Kinematics for arm
     #
 
     def do_FK(self, thetas, debug=False):
@@ -405,7 +437,7 @@ class Kuka_KR210:
         return px, py, pz, roll, pitch, yaw
         
     #
-    # Inverse Kenimatics for arm
+    # Inverse Kinematics for arm
     #
 
     def do_IK(self, px, py, pz, roll, pitch, yaw, last_thetas=None, debug=False):
@@ -478,7 +510,13 @@ class Kuka_KR210:
         theta1 = np.arctan2(wc[1,0], wc[0,0])       ## The simple one
         reach_back = False              # do we reach back over the center?
 
-        if last_thetas is not None:
+        # Disabled this code -- it works, but it allows the base to be
+        # twisted around backwards to prevent a rotate, and then runs in to
+        # the problem of not being able to finish the move by reaching "backwards"
+        # far enough IN this exercise.  Better to just let it flip the base when the arm passes
+        # overhead than to run out of reach.
+
+        if 0 and last_thetas is not None:
             # Pick the theta1 that is the closest to the last theta used
             # This allows the arm to reach up and over without spining the base around.
             t1b = theta1 + np.pi
@@ -727,6 +765,13 @@ class Kuka_KR210:
             print "  target roll pitch yaw:", roll, pitch, yaw
             print "  result roll pitch yaw:", r, p, y
 
+        #########################################
+        # Track end location error
+        #########################################
+
+        if self.error_data is not None:
+            self.error_data.append(self.tuple_distance(end_xyz, [px, py, pz]))
+
         if debug:
             print "joint angles: %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f" % (theta1, theta2, theta3, theta4, theta5, theta6)
         
@@ -909,7 +954,7 @@ def handle_calculate_IK(req):
 
     if len(req.poses) < 1:
         print "No valid poses received"
-        return CalculateIKResponse([]) # return with empty list
+        return CalculateIKResponse([]) # try return with empty list
         # return -1
 
     # Initialize service response
@@ -917,6 +962,11 @@ def handle_calculate_IK(req):
     last_thetas = None
     last_position = None
     t0 = time.clock()
+
+    do_error_plot = False
+    
+    if do_error_plot:
+        Robot.start_error_plot()
 
     for x in xrange(0, len(req.poses)):
         # IK code starts here
@@ -974,6 +1024,9 @@ def handle_calculate_IK(req):
         joint_trajectory_point = JointTrajectoryPoint()
         joint_trajectory_point.positions = [theta1, theta2, theta3, theta4, theta5, theta6]
         joint_trajectory_list.append(joint_trajectory_point)
+
+    if do_error_plot and len(Robot.error_data) > 100:
+        Robot.show_error_plot() # will hang process until plot window is closed
 
     Last_position = last_position
     Last_thetas = last_thetas
