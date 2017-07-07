@@ -79,7 +79,52 @@ These images were created in the `print_report_information()` function you can f
 
 #### 2-3. Decouple Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics; doing so derive the equations to calculate all individual joint angles.
 
-The IK process works roughly as follows.  A wrist center location in the world frame is calculated using `px, py, pz` and `roll, pitch, yaw` input values. Theta1, theta2, and theta3 are computed to move the arm's wrist to this calucated wrist center.  Theta1 rotates the arm's vertical motion frame to intersect with the wrist center such that joint 2, the large lower "sholder" joint is positioned towards the wrist center. Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calucate all the angles to compute theta2 and theat3 using straight forward trig (law of cosines) along with known arm geometry values.
+The IK process works roughly as follows.  Far more code specific details are in the comments of the code than are here. This is just a rough overview.
+
+A wrist center location in the world frame is calculated using `px, py, pz` and `roll, pitch, yaw` input values.
+
+```
+R_rpy = self.rot_z(yaw)*self.rot_y(pitch)*self.rot_x(roll) # Extrinsic r, p, y
+R0_6 = R_rpy
+T_ypr = np.vstack((np.hstack((R0_6, np.matrix([[px], [py], [pz]]))), np.matrix([0.0, 0.0, 0.0, 1.0])))
+wc = T_ypr * np.matrix([-self.wrist_length, 0.0, 0.0, 1.0]).T
+```
+
+Theta1, theta2, and theta3 are computed to move the arm's wrist to this calucated wrist center.  Theta1 rotates the arm's vertical motion frame to intersect with the wrist center such that joint 2, the large lower "sholder" joint is positioned towards the wrist center.
+
+```
+theta1 = np.arctan2(wc[1,0], wc[0,0]) 
+```
+
+Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calucate all the angles to compute theta2 and theat3 using straight forward trig (law of cosines) along with known arm geometry values.
+
+Length of the three sides:
+
+```
+l34 = np.sqrt(.054**2 + 1.5**2) # Straight line length from O3 to O4
+l23 = 1.25
+l24 = np.sqrt((wc[0,0]-o2[0,0])**2 + (wc[1,0]-o2[1,0])**2 + (wc[2,0]-o2[2,0])**2)
+```
+
+Three angles of the triangle:
+
+```
+o3a = np.arccos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
+o2a = np.arccos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
+o4a = np.pi - o3a - o2a
+```
+
+Theta2, and theta3 computed from the angles:
+
+```
+wc_to_0 = np.sqrt(wc[0,0]**2 + wc[1,0]**2)
+o2_to_0 = np.sqrt(o2[0,0]**2 + o2[1,0]**2)
+o2o4horz = np.arctan2(wc[2,0]-o2[2,0], wc_to_0 - o2_to_0
+theta2 = np.pi/2 - (o2o4horz + o2a)
+
+o3o4offset = np.arctan2(0.054, 1.5)
+theta3 = np.pi/2 - (o3a + o3o4offset)      
+```
 
 Once theta1, theta2, and theta3 are computed, FK is used to compute a rotation matrix for links 0 to 3.  Using roll, pitch, and yaw values we can also compute the gripper's rotation. These two are then used to compute a gripper roation matrix relative to link3.  This is a little tricky due do the fact that the axis orrienations flip between link3 and the world frame so axis flips are also adjusted in the process to produce a roation matix that only tells us how the griper is rotated relative to link3 of the arm.
 
