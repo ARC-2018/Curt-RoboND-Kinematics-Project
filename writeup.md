@@ -200,6 +200,15 @@ The gripper at times, fails to grab the cylinder, even though it's correlctly po
 
 Likewise, the motion planer will create invalid paths at times.  It will sometimes create paths that cause the blue cylinder being held by the arm to hit the shelf as it swings.  This type of collision of the arm with the shelf might be the cause of the system losing alignment mentioned above.  It will also generate paths at times that the arm can't reach -- so it's generating paths out of the motion space of the arm.  I've only seen this happen when it makes a wild swing almost straight up above the base -- and when it makes the error, it's only a very small amount out of reach -- a cm or less I belive.  My code catches this and reports it on a message to stdout and moves the arm as close to the correct location as it can. The resulting motion is fine, just not stricly matching what was requested. It only seems to run into this problem for one or two postions of the move when I've seen it.  It's rare.
 
+Here's an example of the output of my code when the location can't be reached:
+
+```
+ERROR -- location too far away to reach
+ERROR -- final gripper location fails to match target
+  target px, py, pz 0.935734517594 1.00506256638 3.30427460767
+  result px, py, pz 0.935589867046 1.00482772195 3.30366055913
+```
+
 #### End Effector Location Error Plot
 
 This is optional work suggested in the lesson. This data includes about 2 1/2 pick and place cycles because it collected data from multiple server requests until it had over 100 points to plot. The values are the distance from the starting px,py,pz location to the value computed by running IK, then FK, to re-compute the same point. The limit of 64 bit floating point representation is about e-16 so these values just represent the accumulation of floating point rounding errors in the IK and FK computations.
