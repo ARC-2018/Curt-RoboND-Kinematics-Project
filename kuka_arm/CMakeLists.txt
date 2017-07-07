@@ -169,8 +169,8 @@ add_dependencies(trajectory_sampler ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  install(PROGRAMS
-   scripts/random_spawn.py
-	 scripts/safe_spawner.sh
+   # scripts/random_spawn.py
+     scripts/safe_spawner.sh
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
@@ -190,7 +190,7 @@ add_dependencies(trajectory_sampler ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
  install(FILES
-   config/spawn_locations.yaml
+   config/target_spawn_locations.yaml
 #   # myfile2
    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
  )
