@@ -52,6 +52,30 @@ Line 7 in my table is a fake joint used to establish a final frame of reference 
 
 #### 2-2. Using the DH parameter table you derived earlier, create individual transformation matrices about each joint. In addition, also generate a generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose.
 
+Transformation Matrices for the 6 joints that represent all the formal DH transformations:
+
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T0_1.png)
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T1_2.png)
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T2_3.png)
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T3_4.png)
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T4_5.png)
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T5_6.png)
+
+The last DH "fake" transform to move the origin out to the center of the gripper to match the location given to us in the IK problem:
+
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T6_7.png)
+
+And one more rotation needed to correct axis orrientation from link 6 to the world frame (known as R_corr() in the lessons):
+
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T7_8.png)
+
+And now, the total transformation using px, py, pz, and roll, pitch, and yaw given to us in the IK problem:
+
+![](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/T_total.png)
+
+The first 8 transforms, when combined, using joint angles, will match the last transformation matrix, created using the position and pose of the gripper.
+
+These images were created in the `print_report_information()` function you can find in my IK_server.py code and captured with a simple screen grab.
 
 ##### 2-3. Decouple Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics; doing so derive the equations to calculate all individual joint angles.
 
