@@ -37,7 +37,7 @@ class Kuka_KR210:
             self.test3()
         if 0:
             self.test4()
-        if 0:
+        if 1:
             self.print_report_information() # For the project report
 
     def joint1_in_range(self, radians):
@@ -81,10 +81,10 @@ class Kuka_KR210:
     def print_report_information(self):
         last_t = None
 
-        for link in range(9):
+        for link in range(1,9):
             t = self.getT_sympy(link, DHT=True)
             print
-            print "T0_%d" % (link)
+            print "T%d_%d" % (link-1, link)
             pprint(t)
 
         px, py, pz, roll, pitch, yaw = symbols('px py pz roll pitch yaw')
@@ -96,6 +96,7 @@ class Kuka_KR210:
         print
         print "Total Transform"
         pprint(T)
+        print
 
         print "## px,   py,    pz  is 2.0900910022 0.900061404046 2.34504010203"
         print "## roll, pitch, yaw is -0.000698356770982 0.000605555812397 -0.000801368895296"
@@ -128,7 +129,7 @@ class Kuka_KR210:
         ## Printout we used has only 4 digits of accuracy for these
 
         tt = self.getT_sympy(8,
-            t1=0.466668568222, t2=0.155822729589-pi/2.0, t3=-0.434265795574, t4=-1.07118579525, t5=0.539118653565, t6=1.00392815792)
+            t1=0.466668568222, t2=0.155822729589, t3=-0.434265795574, t4=-1.07118579525, t5=0.539118653565, t6=1.00392815792)
 
         print "total from q's is"
         pprint(tt)
@@ -201,6 +202,8 @@ class Kuka_KR210:
 
     def test3(self):
         # An over the head reach test
+
+        print "test3() -- an over the reach test that causes a base flip"
 
         angle_list = []
         # angle_list.append([0.0001, -0.0882, 0.0850, 0.0000, 0.0033, 0.0001])
@@ -290,7 +293,7 @@ class Kuka_KR210:
     #
     def getR(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
         # Get rotation matrix for different arm frames, n=1 to 8
-        r = self.getT(n, t1=t1, t2=td2, t3=t3, t4=t4, t5=t5, t6=t6)
+        r = self.getT(n, t1=t1, t2=t2, t3=t3, t4=t4, t5=t5, t6=t6)
         return r[:3,:3]
 
     #
@@ -411,16 +414,15 @@ class Kuka_KR210:
     #
     def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None, DHT=False):
 
-        # Old version that used sympy --- worked fine, just way too slow for my taste
+        # Old version that used sympy --- worked fine, just way too slow for my taste (300 times slower than numpy)
 
         # Return Homogeneous transformation matrix for arm frames
         # n controls which frame matrix is returned (1 to 8)
-        # rotation_only controls if only the rotation matrix is returned.
         # n=1 returns T0_1, n=2 returns T0_2, ... n=7 returns T0_G, n=8 returns T0_world
         # T0_G has griper hand at 0,0 with x up, z forward
         # T0_world is same as T0_G except axis rotated to world frame of z up, x forward
 
-        # if DHT, return the transform for only the single link
+        # if DHT is True return the transform for only the single link
 
         if n == 0:
             return eye(4)
@@ -450,7 +452,7 @@ class Kuka_KR210:
         if t1 is not None:
             s.update({q1: t1})
         if t2 is not None:
-            s.update({q2: t2})
+            s.update({q2: t2-pi/2})
         if t3 is not None:
             s.update({q3: t3})
         if t4 is not None:
