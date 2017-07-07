@@ -200,7 +200,7 @@ The gripper at times, fails to grab the cylinder, even though it's correlctly po
 
 Likewise, the motion planer will create invalid paths at times.  It will sometimes create paths that cause the blue cylinder being held by the arm to hit the shelf as it swings.  This type of collision of the arm with the shelf might be the cause of the system losing alignment mentioned above.  It will also generate paths at times that the arm can't reach -- so it's generating paths out of the motion space of the arm.  I've only seen this happen when it makes a wild swing almost straight up above the base -- and when it makes the error, it's only a very small amount out of reach -- a cm or less I belive.  My code catches this and reports it on a message to stdout and moves the arm as close to the correct location as it can. The resulting motion is fine, just not stricly matching what was requested. It only seems to run into this problem for one or two postions of the move when I've seen it.  It's rare.
 
-Here's an example of the output of my code when the location can't be reached:
+Here's an example of the output of my code when the location can't be reached.  The position requested is only about 1mm beyond what the arm can reach, so it looks to me like the path is being constained, but the workspace bounding box was just not calculated correctly.
 
 ```
 ERROR -- location too far away to reach
