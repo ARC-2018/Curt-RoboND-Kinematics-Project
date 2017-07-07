@@ -96,7 +96,7 @@ Theta1, theta2, and theta3 are computed to move the arm's wrist to this calculat
 theta1 = np.arctan2(wc[1,0], wc[0,0]) 
 ```
 
-Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calucate all the angles to compute theta2 and theta3 using straight forward trig (law of cosines) along with known arm geometry values.
+Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calculate all the angles to compute theta2 and theta3 using straight forward trig (law of cosines) along with known arm geometry values.
 
 Length of the three sides:
 
