@@ -36,6 +36,8 @@ class Kuka_KR210:
         if 0:
             self.test3()
         if 1:
+            self.test4()
+        if 0:
             self.print_report_information() # For the project report
 
     def joint1_in_range(self, radians):
@@ -230,6 +232,55 @@ class Kuka_KR210:
         self.test_angles(angle_list)
 
         sys.exit(0)
+
+    def test4(self):
+        # A far reach back over head that caused the code to crap out
+        # Ugh, I don't have xyz or rpy numbers for this
+
+        ## [INFO] [1499400762.939037, 1210.739000]: IK joint angles:  0.6136 -0.2437 -1.3023 -0.2707 -1.7020 -3.3512
+        ## [INFO] [1499400762.946252, 1210.741000]: IK joint angles:  1.2025 -0.0245 -1.4983 -0.5815 -1.6759 -3.0743
+        ## ./IK_server.py:657: RuntimeWarning: invalid value encountered in arccos
+        ## o3a = np.arccos((l24**2 - l23**2 - l34**2) / (-2*l23*l34))
+        ## ./IK_server.py:658: RuntimeWarning: invalid value encountered in arccos
+        ## o2a = np.arccos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
+        ## ERROR -- final gripper location fails to match target
+        ## target px, py, pz 0.0135223310093 0.626326794872 3.48501445893
+        ## result px, py, pz nan nan nan
+        ## ERROR -- final gripper pose fails to match target
+        ## target roll pitch yaw: 0.424568603719 -0.106001542291 -2.15875618369
+        ## result roll pitch yaw: nan nan 0.0
+        ## [INFO] [1499400762.957580, 1210.744000]: IK joint angles:  1.3677     nan     nan  0.0000     nan     nan
+        ## [INFO] [1499400762.963179, 1210.746000]: IK joint angles:  1.4576  0.2836 -1.4635 -3.2539  1.6309 -5.7097
+        ## [INFO] [1499400762.968141, 1210.748000]: IK joint angles:  1.5044  0.3112 -1.3243 -3.0662  1.6589 -5.5798
+        ## [INFO] [1499400762.980311, 1210.750000]: IK joint angles:  1.5469  0.3470 -1.2031 -2.8724  1.6784 -5.4488
+
+        angle_list = []
+        angle_list.append([0.6136, -0.2437, -1.3023, -0.2707, -1.7020, -3.3512]) # good
+        angle_list.append([1.2025, -0.0245, -1.4983, -0.5815, -1.6759, -3.0743]) # good
+        self.test_angles(angle_list)
+
+        print
+        print
+
+        px = 0.0135223310093
+        py = 0.626326794872
+        pz = 3.48501445893
+        roll = 0.424568603719
+        pitch = -0.106001542291
+        yaw = -2.15875618369
+
+        theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=None, debug=True)
+
+        print
+        print
+
+        angle_list = []
+        angle_list.append([1.4576, 0.2836, -1.4635, -3.2539, 1.6309, -5.7097]) # good
+        angle_list.append([1.5044, 0.3112, -1.3243, -3.0662, 1.6589, -5.5798]) # good
+        self.test_angles(angle_list)
+
+        sys.exit(0)
+
 
     #
     # Create rotation matrix for each link
@@ -555,14 +606,14 @@ class Kuka_KR210:
 
         T_ypr = np.vstack((np.hstack((R0_6, np.matrix([[px], [py], [pz]]))), np.matrix([0.0, 0.0, 0.0, 1.0])))
 
-        print "T_ypr is"
-        pprint(T_ypr)
+        # print "T_ypr is"
+        # pprint(T_ypr)
 
         # calculate wrist center as -wrist_length along the x axis
         wc = T_ypr * np.matrix([-self.wrist_length, 0.0, 0.0, 1.0]).T
 
-        print "Wrist center:"
-        pprint (wc)
+        # print "Wrist center:"
+        # pprint (wc)
 
         theta1 = 0.0
         theta2 = 0.0
@@ -650,7 +701,7 @@ class Kuka_KR210:
         l23 = 1.25
         l24 = np.sqrt((wc[0,0]-o2[0,0])**2 + (wc[1,0]-o2[1,0])**2 + (wc[2,0]-o2[2,0])**2)
 
-        # print "tri sides (l34, l23, l24)", l34, l23, l24
+        print "tri sides (l34, l23, l24)", l34, l23, l24
 
         # Use law of cosines to calculate angles from length of sides
 
