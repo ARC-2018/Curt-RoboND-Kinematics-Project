@@ -35,6 +35,8 @@ class Kuka_KR210:
             self.test2()
         if 0:
             self.test3()
+        if 1:
+            self.print_report_information() # For the project report
 
     def joint1_in_range(self, radians):
         deg = self.r_to_d(radians)
@@ -74,6 +76,66 @@ class Kuka_KR210:
         self.error_data = None
 
 
+    def print_report_information(self):
+        last_t = None
+
+        for link in range(9):
+            t = self.getT_sympy(link, DHT=True)
+            print
+            print "T0_%d" % (link)
+            pprint(t)
+
+        px, py, pz, roll, pitch, yaw = symbols('px py pz roll pitch yaw')
+
+        Rrpy = simplify(self.rot_z_sympy(yaw) * self.rot_y_sympy(pitch) * self.rot_x_sympy(roll))
+
+        T = Rrpy.row_join(Matrix([px, py, pz])).col_join(Matrix([0, 0, 0, 1]).T)
+
+        print
+        print "Total Transform"
+        pprint(T)
+
+        print "## px,   py,    pz  is 2.0900910022 0.900061404046 2.34504010203"
+        print "## roll, pitch, yaw is -0.000698356770982 0.000605555812397 -0.000801368895296"
+        print "## T_ypr is"
+        print "## [[  9.99999496e-01   8.00945720e-04   6.06115075e-04   2.09009100e+00]"
+        print "## [ -8.01368663e-04   9.99999435e-01   6.97871217e-04   9.00061404e-01]"
+        print "## [ -6.05555775e-04  -6.98356586e-04   9.99999573e-01   2.34504010e+00]"
+        print "## [  0.00000000e+00   0.00000000e+00   0.00000000e+00   1.00000000e+00]]"
+        print "## Wrist center:"
+        print "## [[ 1.78709116]"
+        print "## [ 0.90030422]"
+        print "## [ 2.34522359]"
+        print "## [ 1.        ]]"
+        print "## joint angles:  0.4667  0.1558 -0.4343 -1.0712  0.5391  1.0039"
+        print "## angles are 0.466668568222 0.155822729589 -0.434265795574 -1.07118579525 0.539118653565 1.00392815792"
+        
+        s = {}
+        s.update({px: 2.0900910022, py: 0.900061404046, pz: 2.34504010203})
+        s.update({roll: -0.000698356770982, pitch: 0.000605555812397, yaw: -0.000801368895296})
+
+        tt = T.subs(s).evalf()
+
+        print "tt is"
+        pprint(tt)
+
+        wc = tt * Matrix([-0.303, 0, 0, 1])
+        print "wc is", wc
+
+        ## Verity T0 to T9
+        ## Printout we used has only 4 digits of accuracy for these
+
+        tt = self.getT_sympy(8,
+            t1=0.466668568222, t2=0.155822729589-pi/2.0, t3=-0.434265795574, t4=-1.07118579525, t5=0.539118653565, t6=1.00392815792)
+
+        print "total from q's is"
+        pprint(tt)
+
+        wc = tt * Matrix([-0.303, 0, 0, 1])
+        print "wc is", wc
+        
+        sys.exit(0)
+
     def test1(self):
         # Test IK code
         if 1:
@@ -81,11 +143,13 @@ class Kuka_KR210:
             px,py,pz = 2.0900910021952077, 0.900061404046043, 2.345040102031809
             roll, pitch, yaw = -0.0006983567709816882, 0.0006055558123970211, -0.0008013688952962057
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
+            print "angles are", theta1, theta2, theta3, theta4, theta5, theta6
         if 1:
             ## DH Home position -- angles all zero
             px,py,pz = 2.153, 0.0, 1.946
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
+            print "angles are", theta1, theta2, theta3, theta4, theta5, theta6
         if 1:
             # test for guy on slack that broke my code
             # high test wc inside j2 circle
@@ -93,11 +157,13 @@ class Kuka_KR210:
             px,py,pz = 0.165865+0.303, 0.229042, 2.5848
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
+            print "angles are", theta1, theta2, theta3, theta4, theta5, theta6
         if 1:
             # Low test fixing above high test borke this?
             px,py,pz = 1.0+0.303, 1.0, 0.2
             roll, pitch, yaw = 0.0, 0.0, 0.0
             theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, debug=True)
+            print "angles are", theta1, theta2, theta3, theta4, theta5, theta6
 
         sys.exit(0)
 
@@ -289,7 +355,7 @@ class Kuka_KR210:
     # The old version of the getT() based on sympy
     # too slow to use
     #
-    def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None):
+    def getT_sympy(self, n, t1=None, t2=None, t3=None, t4=None, t5=None, t6=None, DHT=False):
 
         # Old version that used sympy --- worked fine, just way too slow for my taste
 
@@ -300,15 +366,18 @@ class Kuka_KR210:
         # T0_G has griper hand at 0,0 with x up, z forward
         # T0_world is same as T0_G except axis rotated to world frame of z up, x forward
 
+        # if DHT, return the transform for only the single link
+
         if n == 0:
             return eye(4)
 
+        q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
         q1, q2, q3, q4, q5, q6, q7 = symbols('q1:8')
         d1, d2, d3, d4, d5, d6, d7 = symbols('d1:8')
         a0, a1, a2, a3, a4, a5, a6 = symbols('a0:7')
         alpha0, alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = symbols('alpha0:7')
 
-        print "Calculate Forward Kinematic Matrix for n=", n
+        # print "Calculate Forward Kinematic Matrix for n=", n
                 
         s = {alpha0: 0,      a0: 0,
             alpha1: -pi/2,  a1: 0.35,   d1: 0.75,
@@ -343,6 +412,8 @@ class Kuka_KR210:
                         [0,                     0,                  0,              1]])
         T0_1 = T0_1.subs(s).evalf()
         if n == 1:
+            if DHT:
+                return T0_1
             return T0_1
 
         T1_2 = Matrix([ [cos(q2),              -sin(q2),            0,              a1],
@@ -352,6 +423,8 @@ class Kuka_KR210:
         T1_2 = T1_2.subs(s).evalf()
         T0_2 = (T0_1 * T1_2).evalf()
         if n == 2:
+            if DHT:
+                return T1_2
             return T0_2
 
         T2_3 = Matrix([ [cos(q3),              -sin(q3),            0,              a2],
@@ -361,6 +434,8 @@ class Kuka_KR210:
         T2_3 = T2_3.subs(s).evalf()
         T0_3 = (T0_2 * T2_3).evalf()
         if n == 3:
+            if DHT:
+                return T2_3
             return T0_3
 
         T3_4 = Matrix([ [cos(q4),              -sin(q4),            0,              a3],
@@ -370,6 +445,8 @@ class Kuka_KR210:
         T3_4 = T3_4.subs(s).evalf()
         T0_4 = (T0_3 * T3_4).evalf()
         if n == 4:
+            if DHT:
+                return T3_4
             return T0_4
 
         T4_5 = Matrix([ [cos(q5),              -sin(q5),            0,              a4],
@@ -379,6 +456,8 @@ class Kuka_KR210:
         T4_5 = T4_5.subs(s)
         T0_5 = (T0_4 * T4_5)
         if n == 5:
+            if DHT:
+                return T4_5
             return T0_5
 
         T5_6 = Matrix([ [cos(q6),              -sin(q6),            0,              a5],
@@ -388,6 +467,8 @@ class Kuka_KR210:
         T5_6 = T5_6.subs(s)
         T0_6 = (T0_5 * T5_6)
         if n == 6:
+            if DHT:
+                return T5_6
             return T0_6
 
         T6_G = Matrix([ [cos(q7),              -sin(q7),            0,              a6],
@@ -397,6 +478,8 @@ class Kuka_KR210:
         T6_G = T6_G.subs(s)
         T0_G = (T0_6 * T6_G)
         if n == 7:
+            if DHT:
+                return T6_G
             return T0_G
 
         # Rotations to transform(/fix) final DH axes of gripper to world axes
@@ -416,6 +499,9 @@ class Kuka_KR210:
         R_corr = (R_z * R_y)
 
         T_total = (T0_G * R_corr)
+
+        if DHT:
+            return R_corr # Not actually a real DH Transform 
 
         return T_total
 
@@ -469,11 +555,14 @@ class Kuka_KR210:
 
         T_ypr = np.vstack((np.hstack((R0_6, np.matrix([[px], [py], [pz]]))), np.matrix([0.0, 0.0, 0.0, 1.0])))
 
+        print "T_ypr is"
+        pprint(T_ypr)
+
         # calculate wrist center as -wrist_length along the x axis
         wc = T_ypr * np.matrix([-self.wrist_length, 0.0, 0.0, 1.0]).T
 
-        # print "Wrist center:"
-        # pprint (wc)
+        print "Wrist center:"
+        pprint (wc)
 
         theta1 = 0.0
         theta2 = 0.0
@@ -888,6 +977,27 @@ class Kuka_KR210:
     def rot_z(self, q):    
         R_z = np.matrix([[np.cos(q), -np.sin(q), 0],
                     [np.sin(q), np.cos(q), 0],
+                    [0, 0, 1]])
+        
+        return R_z
+
+    def rot_x_sympy(self, q):
+        R_x = Matrix([[1, 0, 0],
+                    [0, cos(q), -sin(q)],
+                    [0, sin(q), cos(q)]])
+        
+        return R_x
+        
+    def rot_y_sympy(self, q):              
+        R_y = Matrix([[cos(q), 0, sin(q)],
+                    [0, 1, 0],
+                    [-sin(q), 0, cos(q)]])
+        
+        return R_y
+
+    def rot_z_sympy(self, q):    
+        R_z = Matrix([[cos(q), -sin(q), 0],
+                    [sin(q), cos(q), 0],
                     [0, 0, 1]])
         
         return R_z
