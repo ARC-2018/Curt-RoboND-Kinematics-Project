@@ -90,7 +90,7 @@ T_ypr = np.vstack((np.hstack((R0_6, np.matrix([[px], [py], [pz]]))), np.matrix([
 wc = T_ypr * np.matrix([-self.wrist_length, 0.0, 0.0, 1.0]).T
 ```
 
-Theta1, theta2, and theta3 are computed to move the arm's wrist to this calculated wrist center.  Theta1 rotates the arm's vertical motion frame to intersect with the wrist center such that joint 2, the large lower "shoulder" joint is positioned towards the wrist center.
+Theta1, theta2, and theta3 are computed to move the arm's wrist to this calculated wrist center.  Theta1 rotates the arm's vertical motion plane to intersect with the wrist center such that joint 2, the large lower "shoulder" joint is positioned towards the wrist center.
 
 ```
 theta1 = np.arctan2(wc[1,0], wc[0,0]) 
