@@ -18,7 +18,7 @@ You're reading it!
 ### 2. Kinematic Analysis
 #### 2-1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
 
-A hand-drawn diagram was suggested, so here's the hand-drawn notes I created for the project!
+A hand-drawn diagram was suggested, so here's the hand-drawn notes I created for the project!  It's not a clear image of course, but it was good enough to allow me to complete this project and it seems to meet the requirements for this rubric.
 
 ![DH Hand Drawing](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/DH%20drawing.jpg)
 
@@ -79,6 +79,46 @@ These images were created in the `print_report_information()` function you can f
 
 ##### 2-3. Decouple Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics; doing so derive the equations to calculate all individual joint angles.
 
+The IK process works roughly as follows.  A wrist center location in the world frame is calculated using `px, py, pz` and `roll, pitch, yaw` input values. Theta1, theta2, and theta3 are computed to move the arm's wrist to this calucated wrist center.  Theta1 rotates the arm's vertical motion frame to intersect with the wrist center such that joint 2, the large lower "sholder" joint is positioned towards the wrist center. Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calucate all the angles to compute theta2 and theat3 using straight forward trig (law of cosines) along with known arm geometry values.
+
+Once theta1, theta2, and theta3 are computed, FK is used to compute a rotation matrix for links 0 to 3.  Using row, pitch, and yaw values we can also compute the gripper's roation. These two are then used to compute a gripper roation matrix relative to link3.  This is a little tricky due do the fact that the axis orrienations flip in this process so axis flips are also adjusted in the process to produce a roation matix that only tells us how the griper is rotated relative to link3 of the arm.
+
+My code for this is here:
+
+```
+R3_w = T3.transpose()[:3,:3] * R_rpy
+R3_6 = R3_w * (self.rot_z(np.pi/2) * self.rot_x(np.pi/2)).T
+```
+
+Wrist rotation values for theta4, theta5, and theta6 are computed using the tf.transformaions routine directly from the rotation matrix created.
+
+```
+a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='ryzy')
+```
+
+and:
+
+```
+theta4 = a
+theta5 = b
+theta6 = g
+```
+
+##### Wrist Flips and Alternate Arm Positions
+
+For any given IK problem defined by gripper locaiton and pose, there are many different arm configurations that can move the gripper to the correct location and angle.  The base can be rotated towards, or away from the wrist center. and links 2 and 3, can form a triangle with the elbow riased, or lowered -- creating 4 possible configurations for theta1, theta2, and theta3 to position the arm at the correct wirst center.
+
+The test exercise will sometimes produce paths that riase the arm up and over the base to make it reach backwards and then lower it again.  Without adjusting for alternate base configurations this path will force the base to do a 180 deg flip in the middle of the motion which is slow, time consuming, and forces a momentary wild off-path swing of the gripper as the base flips around.  I wrote code to consider the alternate base configuration where joint2 can be allowed to be on the far side of the base away from the wrist center and it worked fine to stop the inital base flip motion.  However, the paths generated often then caused the based to twist around and force the arm to reach backwards to the shelf -- which was not possible beuase the joints in the arms could not bend far ebnnough to reach the shelf backwards like that.  So the base rotate was required anyway.  The more advanced code only changed where the base rotated, and was not able to produce paths without base roations due to the types of paths generated in this exercise.  So I didabled the base flip code in the final version, though the code is still in the source file.
+
+The same alternate arm configuation problem of the base, exists for the wrist as well. But it's much worse for the wrist due to the large rotation range of joint 4 and joint 6 (+- 350 degs).  There are often as many as 6 or 8 different wrist configurations that can put the gripper into the correct orrientation.
+
+This exercise generates paths for the gripper that are full of gripper rotations, and without care in picking the correct wrist configuration at each step, the gripper will often have to pause and do a full 360 flip to get from one point in the move to the next.
+
+I wrote code to test all possible wrist configuations and pick the best one based on minimizing rotations from the previous orrientation.  Unlike the base flip code that didn't help improve the base flip problem in the paths of this exercise, the wrist orriention code greatly reduced the need for wrist flips in the paths.  They almost never happen now for the paths of this exercie. The gripper is almost always able to move through the motions without need for wrist flips in the middle of the motion.  At the end of the pick and place, when the arm moves back to the start, it now has to "unwind" twists created by the pick and place motions. So you will notice a set of smooth roations and flips to get the arm back to the zero starting position as it moves back from the bin, to the starting location.
+
+To work, the code needs to know the previous configuration of the arm. From step to step in a move, this is just saved and used for the next stop.  But since the pick and drop moves are separate IK requests, I had to hack in a solution for this exercise to pass the last position of the pick, to the first move in the drop cycle, so that there were no extra wrist flips at the start of the drop move.
+
+The hack above represents a protocol weakness of the IK request. It would beimpoved by including information about the starting configuation of the arm but doesn't, so the hack above was needed to create optimal IK solutions.
 
 ### 3. Project Implementation
 
@@ -92,27 +132,17 @@ The Kinematics code for the arm was all moved into a class called Kuka_KR210.  T
 
 The `do_FK()` method computes forward kinematics by taking a set of 6 joint angles and computing the end effector x, y, and z location and it's pose in the form of row, pitch, and yaw values.  This uses the DH transformation matrices created by the `getT()` method.
 
-The `do_IK()` method is the Inverse Kinematcis code in numpy.
-
-The IK process works roughly as follows.  A wrist center location in the world frame is calculated using `px, py, pz` and `roll, pitch, yaw` input values. Theta1, theta2, and theta3 are computed to move the arm's wrist to this calucated wrist center.  Theta1 rotates the arm's vertical motion frame to intersect with the wrist center such that joint 2, the large lower "sholder" joint is positioned towards the wrist center. Link2 and Link3 form a virtual triangle from joint 2 to the wrist center, and since we know the length of the sides of this triangle we can calucate all the angles to compute theta2 and theat3 using straight forward trig along with known arm geometry values.
-
-Once theta1, theta2, and theta3 re computed, FK is used to compute a rotation matrix for links 0 to 3.  Using row, pitch, and yaw values we can also compute the gripper's roation. These two are then used to compute a gripper roation matrix relative to link3.  This is a little tricky due do the fact that the axis orrienations flip in this process so axis flips are also adjusted in the process to produce a roation matix that only tells us how the griper is rotated relative to link3 of the arm.
-
-Wrist rotation values for theta4, theta5, and theta6 are computed using the tf.transformaions routine directly from the rotation matrix created.
-
-##### Wrist Flips and Alternate Arm Positions
-
-For any given IK problem defined by gripper locaiton and pose, there are many different arm configurations that can move the gripper to the correct location and angle.  The base can be rotated towards, or away from the wrist center. and links 2 and 3, can form a triangle with the elbow riased, or lowered -- creating 4 possible configurations for theta1, theta2, and theta3 to position the arm at the correct wirst center.
-
-The test exercise will sometimes produce paths that riase the arm up and over the base to make it reach backwards and then lower it again.  Without adjusting for alternate base configurations this path will force the base to do a 180 deg flip in the middle of the motion which is slow, time consuming, and forces a momentary wild off-path swing of the gripper as the base flips around.  I wrote code to consider the alternate base configuration where joint2 can be allowed to be on the far side of the base away from the wrist center and it worked fine to stop the inital base flip motion.  However, the paths generated often then caused the based to twist around and force the arm to reach backwards to the shelf -- which was not possible beuase the joints in the arms coulod not bend far ebnnough to reach the shelf bacwards like that.  So the base rotate was required anyway.  The more advanced code only changed where the base rotated, and was not able to produce paths without base roations due to the types of paths generated in this exercise.  So I didabled the base flip code in this version.
-
-The same alternate arm configuation problem of the base, exists for the wrist as well. But it's much worse for the wrist due to the large rotation range of joint 4 and joint 5 (+- 350 degs).  There are often as many as 6 or 8 different wrist configurations to put the gripper into the correct orrientation.
-
-This exercise generates paths for the gripper that are full of gripper rotations, and without care in picking the correct wrist configuration at each step, the gripper will often have to pause and do a full 360 flip to get from one point in the move to the next.
-
-I wrote code to test all possible wrist configuations and pick the best one based on minimizing rotations from the previous pose.  Unlike the base flip code that didn't help improve the base flip problem in the paths of this exercise, the wrist orriention code greatly reduced the need for wrist flips in the paths.  They almost never happen now. The gripper is almost always able to move though the motions without need for wrist flips in the middle of the motion.  At the end of the pick and place, when the arm moves back to the start, it now has to "unwind" twists created by the pick and place motions. So you will notice a set of smooth roations and flips to get the arm back to the zero starting position as it moves back from the bin, to the starting location.
+The `do_IK()` method is the Inverse Kinematcis code in numpy which works as described in the previous section of this report.
 
 The wrist configuration optimization code can be found in the `find_best_wrist()` method.
+
+##### Results
+
+My code seems to work very well.  The test environment however is a bit flakly and unstable.  For example, it can at times, become misaligned so that valid joint positions will no longer move the arm to the correct shelf locations.  I have not spent the time to track down what the cause of this is, but it doesn't seem to be in my code.
+
+The gripper at times, fails to grab the cylinder, even though it's correlctly positioned.  Again, seems to be an environment issue.  I added the delay code as talked about in the slack channel and that greatly improves the odds of the gripper grabbing the cylinder but doesn't totally fix the issue.
+
+Likewise, the motion planer will create invalid paths at times.  It will sometimes create paths that cause the blue cylinder being held by the arm to hit the shelf as it swings.  It will also generate paths at times that the arm can't reach -- so it's generating paths out of the motion space of the arm.  I've only seen this happen when it makes a wild swing almost straight up above the base -- and when it makes the error, it's only a very small amount out of reach -- a cm or so.  My code catches this and reports it on a message to stdout and moves the arm as close to the correct location as it can. The resulting motion is fine, just not stricly matching what was requested. It only seems to run into this problem for one or two postions of the move when I've seen it.
 
 ##### End Effector Location Error Plot
 
