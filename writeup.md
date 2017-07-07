@@ -144,7 +144,7 @@ R3_w = T3.transpose()[:3,:3] * R_rpy
 R3_6 = R3_w * (self.rot_z(np.pi/2) * self.rot_x(np.pi/2)).T
 ```
 
-Wrist rotation values for theta4, theta5, and theta6 are computed using the tf.transformations routine directly from the rotation matrix created.
+Wrist rotation values for theta4, theta5, and theta6 are computed using a tf.transformations routine directly from the rotation matrix created.
 
 ```
 a, b, g = tf.transformations.euler_from_matrix(np.array(R3_6).astype(np.float64), axes='ryzy')
@@ -180,7 +180,7 @@ The hack above represents a protocol weakness of the IK request. It could be imp
 
 My file can be found in my repository here: [IK_server.py](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/kuka_arm/scripts/IK_server.py)
 
-As submitted the code is configured to run as an IK server, but it includes a good bit of addition test and and debug features that are either commented out or turned off.
+As submitted the code is configured to run as an IK server, but it includes a good bit of additional test and and debug features that are either commented out or turned off.
 
 The Kinematics code for the arm was all moved into a class called Kuka_KR210.  The early version of the code used sympy as per the examples in the lessons, but I got tired of debugging code that was running so slow so I rewrote all the math to use numpy and that made it run about 300 times faster.  The sympy version of the transformation code is still to be found in the `getT_sympy()` method which was also used above to produce the symbolic versions of the Transform tables for this write-up.  But the bulk of the rest of the code is all based on numpy.
 
