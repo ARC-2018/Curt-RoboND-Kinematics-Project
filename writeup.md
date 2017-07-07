@@ -1,7 +1,7 @@
 ## Project: Kinematics Pick & Place
 ### Student Writeup by Curt Welch <curt@kcwc.com>
 ### July 7, 2017
-### Project submited as a github repository
+### Project submitted as a github repository
 ### https://github.com/curtwelch/RoboND-Kinematics-Project
 
 ---
@@ -13,7 +13,7 @@
 
 ### 1. Provide a Writeup 
 
-You're reading it!
+Here it is!
 
 ### 2. Kinematic Analysis
 #### 2-1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
@@ -114,15 +114,24 @@ o2a = np.arccos((l34**2 - l23**2 - l24**2) / (-2*l23*l24))
 o4a = np.pi - o3a - o2a
 ```
 
-Theta2, and theta3 computed from the angles:
+One more angle needed to tell us the roation of the triangle relative to horizontal.  The angle about joint 2 from horizontal to the wrist center is computed:
 
 ```
 wc_to_0 = np.sqrt(wc[0,0]**2 + wc[1,0]**2)
 o2_to_0 = np.sqrt(o2[0,0]**2 + o2[1,0]**2)
 o2o4horz = np.arctan2(wc[2,0]-o2[2,0], wc_to_0 - o2_to_0
-theta2 = np.pi/2 - (o2o4horz + o2a)
+```
 
+And, yet another angle of the offset in the link3 between joint3 and joint 4:
+
+```
 o3o4offset = np.arctan2(0.054, 1.5)
+```
+
+Theta2, and theta3 computed from all the angles:
+
+```
+theta2 = np.pi/2 - (o2o4horz + o2a)
 theta3 = np.pi/2 - (o3a + o3o4offset)      
 ```
 
@@ -165,7 +174,7 @@ To work, the code needs to know the previous configuration of the arm. From step
 
 The hack above represents a protocol weakness of the IK request. It could impoved by including information about the starting configuation of the arm but doesn't now, so the hack above was needed to create optimal IK solutions that didn't add an extra unneeded wrist flip at the start of the drop cycle.
 
-### 3. Project Implementation
+### 3. Project Implimentation
 
 #### 3-1. Fill in the `IK_server.py`
 
