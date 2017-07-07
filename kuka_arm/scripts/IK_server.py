@@ -35,7 +35,7 @@ class Kuka_KR210:
             self.test2()
         if 0:
             self.test3()
-        if 1:
+        if 0:
             self.test4()
         if 0:
             self.print_report_information() # For the project report
@@ -235,7 +235,8 @@ class Kuka_KR210:
 
     def test4(self):
         # A far reach back over head that caused the code to crap out
-        # Ugh, I don't have xyz or rpy numbers for this
+        # Turned out to be a point too far to reach -- added code to catch it and make
+        # the arm reach as far as possible in the intented direction.
 
         ## [INFO] [1499400762.939037, 1210.739000]: IK joint angles:  0.6136 -0.2437 -1.3023 -0.2707 -1.7020 -3.3512
         ## [INFO] [1499400762.946252, 1210.741000]: IK joint angles:  1.2025 -0.0245 -1.4983 -0.5815 -1.6759 -3.0743
@@ -260,6 +261,7 @@ class Kuka_KR210:
         self.test_angles(angle_list)
 
         print
+        print "DIE DIE DIE from too far to reach ============================="
         print
 
         px = 0.0135223310093
@@ -272,6 +274,7 @@ class Kuka_KR210:
         theta1, theta2, theta3, theta4, theta5, theta6 = self.do_IK(px, py, pz, roll, pitch, yaw, last_thetas=None, debug=True)
 
         print
+        print "==============================================================="
         print
 
         angle_list = []
@@ -701,7 +704,11 @@ class Kuka_KR210:
         l23 = 1.25
         l24 = np.sqrt((wc[0,0]-o2[0,0])**2 + (wc[1,0]-o2[1,0])**2 + (wc[2,0]-o2[2,0])**2)
 
-        print "tri sides (l34, l23, l24)", l34, l23, l24
+        if l24 > l23 + l34:
+            print "ERROR -- location too far away to reach"
+            l24 = (l23 + l34) * 0.99999 # force a slight round down to avoid problems
+
+        # print "tri sides (l34, l23, l24)", l34, l23, l24
 
         # Use law of cosines to calculate angles from length of sides
 
