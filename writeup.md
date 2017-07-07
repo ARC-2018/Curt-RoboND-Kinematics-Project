@@ -11,16 +11,16 @@
 ---
 ### Metrics
 
-#### 1. Provide a Writeup 
+### 1. Provide a Writeup 
 
 You're reading it!
 
-#### 2. Kinematic Analysis
-##### 2-1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
+### 2. Kinematic Analysis
+#### 2-1. Run the forward_kinematics demo and evaluate the kr210.urdf.xacro file to perform kinematic analysis of Kuka KR210 robot and derive its DH parameters.
 
 A hand-drawn diagram was suggested, so here's the hand-drawn notes I created for the project!
 
-![DH Drawing](misc_images/DH Drawing.jpg)
+![DH Hand Drawing](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/DH%20drawing.jpg)
 
 The Modified DH Table parameter table
 
@@ -50,7 +50,7 @@ This table was created by starting with the joint locations and orientations sug
 
 Line 7 in my table is a fake joint used to establish a final frame of reference at the center of the gripper which is .303 m further down the arm from the DH location of joint 6 (which is placed at the wrist center).
 
-##### 2-2. Using the DH parameter table you derived earlier, create individual transformation matrices about each joint. In addition, also generate a generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose.
+#### 2-2. Using the DH parameter table you derived earlier, create individual transformation matrices about each joint. In addition, also generate a generalized homogeneous transform between base_link and gripper_link using only end-effector(gripper) pose.
 
 
 ##### 2-3. Decouple Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics; doing so derive the equations to calculate all individual joint angles.
