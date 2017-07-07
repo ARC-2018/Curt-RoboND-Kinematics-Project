@@ -37,7 +37,7 @@ class Kuka_KR210:
             self.test3()
         if 0:
             self.test4()
-        if 1:
+        if 0:
             self.print_report_information() # For the project report
 
     def joint1_in_range(self, radians):
