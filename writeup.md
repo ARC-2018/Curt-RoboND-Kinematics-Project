@@ -60,7 +60,7 @@ Line 7 in my table is a fake joint used to establish a final frame of reference 
 
 #### 3-1. Fill in the `IK_server.py`
 
-My file can be found in my repository here: [IK_server.py](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/scripts/IK_server.py)
+My file can be found in my repository here: [IK_server.py](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/kuka_arm/scripts/IK_server.py)
 
 As submited the code is configured to run as an IK server, but it includes a good bit of addition test and and debug features that are either commented out or turned off.
 
@@ -92,7 +92,7 @@ The wrist configuration optimization code can be found in the `find_best_wrist()
 
 ##### End Effector Location Error Plot
 
-Optional work suggested in lesson. This data includes about 2 1/2 pick and place cycles because it collected data from multiple server requests until it had over 200 points to plot. The values are the distance from the starting px,py,pz location to the value computed by running IK, then FK, to re-compute the same point. The limit of 64 bit floating point representation is about e-16 so these values just represent the accumulation of floating point rounding errors in the IK and FK computations.
+Optional work suggested in lesson. This data includes about 2 1/2 pick and place cycles because it collected data from multiple server requests until it had over 100 points to plot. The values are the distance from the starting px,py,pz location to the value computed by running IK, then FK, to re-compute the same point. The limit of 64 bit floating point representation is about e-16 so these values just represent the accumulation of floating point rounding errors in the IK and FK computations.
   
 ![Error Plot](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/error%20plot.png)
 
