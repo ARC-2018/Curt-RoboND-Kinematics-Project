@@ -186,7 +186,7 @@ The Kinematics code for the arm was all moved into a class called Kuka_KR210.  T
 
 The `do_FK()` method computes forward kinematics by taking a set of 6 joint angles and computing the end effector x, y, and z location and its pose in the form of row, pitch, and yaw values.  This uses the DH transformation matrices created by the `getT()` method.
 
-The `do_IK()` method is the Inverse Kinematics code in numpy which works as described in the previous section of this report. It makes use of some of the FK transformation code both in it's calculations and to verify the results are valid. If the IK every fails to find a valid answer the error is logged to stdout.
+The `do_IK()` method is the Inverse Kinematics code written with numpy functions which works as described in the previous section of this report. It makes use of some of the FK transformation code both in its calculations and to verify the results are valid. If the IK ever fails to find a valid answer the error is logged to stdout.
 
 Computed arm angles are always logged to the server log.
 
@@ -196,11 +196,13 @@ The wrist configuration optimization code can be found in the `find_best_wrist()
 
 My code seems to work well.  The test environment however is a bit unstable.  For example, it can at times, become misaligned so that valid joint positions will no longer move the arm to the correct shelf locations.  I have not spent the time to track down what the cause of this is, but it doesn't seem to be in my code.
 
-The gripper at times, fails to grab the cylinder, even though it's correctly positioned.  Again, seems to be an environment issue.  I added the delay code as talked about in the slack channel and that greatly improves the odds of the gripper grabbing the cylinder but doesn't totally fix the issue.
+The gripper at times, fails to grab the cylinder, even though it's correctly positioned.  Again, this seems to be an environment issue.  I added the delay code as talked about in the slack channel and that greatly improves the odds of the gripper grabbing the cylinder but doesn't totally fix the issue.
 
-Likewise, the motion planner will create invalid paths at times.  It will sometimes create paths that cause the blue cylinder being held by the arm to hit the shelf as it swings.  This type of collision of the arm with the shelf might be the cause of the system losing alignment mentioned above.  It will also generate paths at times that the arm can't reach -- so it's generating paths out of the motion space of the arm.  I've only seen this happen when it makes a wild swing almost straight up above the base -- and when it makes the error, it's only a very small amount out of reach -- a cm or less I believe.  My code catches this and reports it on a message to stdout and moves the arm as close to the correct location as it can. The resulting motion is fine, just not stricly matching what was requested. It only seems to run into this problem for one or two positions of the move when I've seen it.  It's rare.
+Also, the motion planner will create invalid paths at times.  It will sometimes create paths that cause the blue cylinder being held by the arm to hit the shelf as it swings.  This type of collision of the arm with the shelf might be the cause of the system losing alignment mentioned above.
 
-Here's an example of the output of my code when the location can't be reached.  The position requested is only about 1mm beyond what the arm can reach, so it looks to me like the path is being constrained, but the workspace bounding box was just not calculated correctly.
+It will also generate paths at times that the arm can't reach -- so it's generating paths out of the motion space of the arm.  I've only seen this happen when it makes a wild swing almost straight up above the base. When it makes the error, it's only a very small amount out of reach -- 1 cm or less I believe.  My code catches this and reports it on a message to stdout and moves the arm as close to the correct location as it can. The resulting motion is fine, just not stricly matching what was requested. It only seems to run into this problem for one or two positions of the move when I've seen it.  It's rare.
+
+Here's an example of the output of my code when the location can't be reached.  The position requested is only about 1mm beyond what the arm can reach in this example, so it looks to me like the path is being constrained, but the workspace bounding box was just not calculated correctly by the motion planning system.
 
 ```
 ERROR -- location too far away to reach
@@ -211,7 +213,7 @@ ERROR -- final gripper location fails to match target
 
 #### End Effector Location Error Plot
 
-This is optional work suggested in the lesson. This data includes about 2 1/2 pick and place cycles because it collected data from multiple server requests until it had over 100 points to plot. The values are the distance from the starting px,py,pz location to the value computed by running IK, then FK, to re-compute the same point. The limit of 64 bit floating point representation is about e-16 so these values just represent the accumulation of floating point rounding errors in the IK and FK computations.
+This is optional work suggested in the lesson. This data includes about 2 1/2 pick and place cycles because the code collected data from multiple server IK requests until it had over 100 points to plot. The values are the distance from the starting px,py,pz location to the value computed by running IK, then FK, to re-compute the same point. The limit of 64 bit floating point representation is about e-16 so these values just represent the accumulation of floating point rounding errors in the IK and FK computations.
   
 ![Error Plot](https://github.com/curtwelch/RoboND-Kinematics-Project/blob/master/misc_images/error%20plot.png)
 
