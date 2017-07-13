@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
+# Forward Kinematcis code -- later incorporated into IK_server.py 
 
-
-# import modules
+#import modules
 #import rospy
 #import tf
 #from kuka_arm.srv import *
